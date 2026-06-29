@@ -1,5 +1,5 @@
 # scripts/api.R
-# Plumber API с логированием и ручной отправкой PNG
+# Plumber API с ручной отправкой PNG через res$body
 
 library(plumber)
 library(sf)
@@ -115,7 +115,7 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
-# ---- Эндпоинт /map (без @serializer png) ----
+# ---- Эндпоинт /map (возвращаем raw через res$body) ----
 #* @post /map
 #* @raw
 function(req, res) {
@@ -166,7 +166,8 @@ function(req, res) {
   cat("Возвращаем PNG, длина:", length(result), "\n")
   
   res$setHeader("Content-Type", "image/png")
-  return(result)
+  res$body <- result
+  return(res)
 }
 
 cat("=== API загружено успешно ===\n")
