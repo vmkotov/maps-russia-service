@@ -1,0 +1,10 @@
+# Исключаем большие и временные файлы
+*.rds
+*.zip
+*.tar.gz
+*.log
+.DS_Store
+.Rproj.user
+.Rhistory
+.RData
+renv/
