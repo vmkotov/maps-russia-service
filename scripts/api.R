@@ -1,23 +1,23 @@
 # scripts/api.R
-# Plumber API с логированием для отладки на Render
+# Plumber API с логированием и абсолютными путями
 
 library(plumber)
 library(sf)
 library(ggplot2)
 library(jsonlite)
 
-cat("=== Загрузка API (старт) ===\n")
-cat("Working directory:", getwd(), "\n")
-cat("Files in current dir:", list.files(), "\n")
-cat("Files in data/rds/:", list.files("data/rds/", full.names = TRUE), "\n")
+# ---- Устанавливаем рабочую директорию в корень проекта ----
+setwd("/app")
+cat("Working directory set to:", getwd(), "\n")
+cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
-# ---- Встроенная функция load_data (с логированием) ----
+# ---- Встроенная функция load_data ----
 load_data <- function() {
   cat("load_data(): начало\n")
   required_files <- c(
-    "data/rds/combined.rds",
-    "data/rds/enissey.rds",
-    "data/rds/selected_lakes.rds"
+    "/app/data/rds/combined.rds",
+    "/app/data/rds/enissey.rds",
+    "/app/data/rds/selected_lakes.rds"
   )
   for (f in required_files) {
     cat("Проверка файла:", f, " - ", file.exists(f), "\n")
@@ -27,15 +27,15 @@ load_data <- function() {
   }
   cat("Все файлы найдены. Загружаем...\n")
   data <- list(
-    combined = readRDS("data/rds/combined.rds"),
-    enissey = readRDS("data/rds/enissey.rds"),
-    selected_lakes = readRDS("data/rds/selected_lakes.rds")
+    combined = readRDS("/app/data/rds/combined.rds"),
+    enissey = readRDS("/app/data/rds/enissey.rds"),
+    selected_lakes = readRDS("/app/data/rds/selected_lakes.rds")
   )
   cat("Данные загружены успешно\n")
   return(data)
 }
 
-# ---- Встроенная функция generate_map_from_regions ----
+# ---- Встроенная функция generate_map_from_regions (без изменений) ----
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
@@ -115,13 +115,12 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
-# ---- Эндпоинт /map с логированием ----
+# ---- Эндпоинт /map (request_id стал опциональным) ----
 #* @post /map
 #* @serializer png
 function(req, res) {
   cat("=== Запрос на /map ===\n")
   cat("Request method:", req$REQUEST_METHOD, "\n")
-  cat("Headers:", names(req$HEADERS), "\n")
   
   body <- tryCatch(
     jsonlite::fromJSON(req$postBody),
@@ -138,7 +137,8 @@ function(req, res) {
     return(list(error = "Missing 'regions' field"))
   }
   
-  required <- c("request_id", "client_id", "first_name", "last_name", "regions")
+  # Обязательные поля (request_id не обязателен)
+  required <- c("client_id", "first_name", "last_name", "regions")
   missing <- setdiff(required, names(body))
   if (length(missing) > 0) {
     cat("Отсутствуют поля:", paste(missing, collapse=", "), "\n")
