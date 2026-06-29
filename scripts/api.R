@@ -1,5 +1,5 @@
 # scripts/api.R
-# Plumber API с логированием и абсолютными путями
+# Plumber API с логированием и ручной отправкой PNG
 
 library(plumber)
 library(sf)
@@ -35,7 +35,7 @@ load_data <- function() {
   return(data)
 }
 
-# ---- Встроенная функция generate_map_from_regions (без изменений) ----
+# ---- Встроенная функция generate_map_from_regions ----
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
@@ -115,9 +115,9 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
-# ---- Эндпоинт /map (request_id стал опциональным) ----
+# ---- Эндпоинт /map (без @serializer png) ----
 #* @post /map
-#* @serializer png
+#* @raw
 function(req, res) {
   cat("=== Запрос на /map ===\n")
   cat("Request method:", req$REQUEST_METHOD, "\n")
@@ -137,7 +137,6 @@ function(req, res) {
     return(list(error = "Missing 'regions' field"))
   }
   
-  # Обязательные поля (request_id не обязателен)
   required <- c("client_id", "first_name", "last_name", "regions")
   missing <- setdiff(required, names(body))
   if (length(missing) > 0) {
@@ -165,6 +164,8 @@ function(req, res) {
   
   result <- readBin(tmp, "raw", n = file.info(tmp)$size)
   cat("Возвращаем PNG, длина:", length(result), "\n")
+  
+  res$setHeader("Content-Type", "image/png")
   return(result)
 }
 
