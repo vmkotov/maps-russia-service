@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- CSS -->
+    <link href="include/bootstrap-4.0.0-dist/css/bootstrap-united.min.css" rel="stylesheet" />
+
+</head>
+<title>GADM</title>
+
+<meta http-equiv="refresh" content="1; URL=https://gadm.org/">
+<meta name="keywords" content="automatic redirection">
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img { 
+  max-width:100%; 
+  height: auto; 
+}
+
+</style>
+<div class="container-fluid main-container">
+
+<p>
+<h2>GADM maps and data</h2>
+<p>
+<br>
+Page not found. Redirecting ....
+<br>
+
+</div>
+
+</body>
+</html>
+

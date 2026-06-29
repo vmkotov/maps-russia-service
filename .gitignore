@@ -1,0 +1,24 @@
+# R
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+renv/library/
+renv/staging/
+renv/local/
+renv/activate.R
+
+# Данные (RDS) — если они большие, исключаем; если маленькие — можно закомментировать
+# data/rds/*.rds
+
+# Выходные файлы
+output/plots/
+output/reports/
+
+# Временные файлы
+*.tmp
+*.log
+.DS_Store
+
+# Docker
+*.tar.gz
