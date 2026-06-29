@@ -155,7 +155,7 @@ generate_from_json <- function(json_file, output_dir = "output/plots") {
   # Строим карту (сохраняем)
   generate_map_from_regions(data_env, json_data, output_file)
   
-  return(output_file)
+  return(output_file) 
 }
 
 # ---- Запуск из командной строки ----
