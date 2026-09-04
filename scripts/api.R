@@ -6,7 +6,6 @@ library(sf)
 library(ggplot2)
 library(jsonlite)
 
-# ---- Устанавливаем рабочую директорию в корень проекта ----
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
@@ -16,8 +15,9 @@ load_data <- function() {
   cat("load_data(): начало\n")
   required_files <- c(
     "/app/data/rds/combined.rds",
-    "/app/data/rds/enissey.rds",
-    "/app/data/rds/selected_lakes.rds"
+    "/app/data/rds/russian_rivers.rds",
+    "/app/data/rds/selected_lakes.rds",
+    "/app/data/rds/azov_sea.rds"
   )
   for (f in required_files) {
     cat("Проверка файла:", f, " - ", file.exists(f), "\n")
@@ -28,8 +28,9 @@ load_data <- function() {
   cat("Все файлы найдены. Загружаем...\n")
   data <- list(
     combined = readRDS("/app/data/rds/combined.rds"),
-    enissey = readRDS("/app/data/rds/enissey.rds"),
-    selected_lakes = readRDS("/app/data/rds/selected_lakes.rds")
+    rivers = readRDS("/app/data/rds/russian_rivers.rds"),
+    selected_lakes = readRDS("/app/data/rds/selected_lakes.rds"),
+    azov = readRDS("/app/data/rds/azov_sea.rds")
   )
   cat("Данные загружены успешно\n")
   return(data)
@@ -39,8 +40,9 @@ load_data <- function() {
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
-  enissey <- data_env$enissey
+  rivers <- data_env$rivers
   selected_lakes <- data_env$selected_lakes
+  azov <- data_env$azov
   
   regions_df <- json_data$regions
   if (is.null(regions_df) || nrow(regions_df) == 0) {
@@ -50,7 +52,7 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   
   required_cols <- c("region_name_en", "district_name")
   if (!all(required_cols %in% colnames(regions_df))) {
-    stop("В JSON в поле 'regions' отсутствуют колонки: ", 
+    stop("В JSON в поле 'regions' отсутствуют колонки: ",
          paste(setdiff(required_cols, colnames(regions_df)), collapse=", "))
   }
   
@@ -74,35 +76,28 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
     "Южный"                = "#E5989B"
   )
   
-  districts_present <- unique(regions_df$district_name)
-  colors_used <- district_colors[names(district_colors) %in% districts_present]
-  default_color <- "#A9A9A9"
-  missing_districts <- setdiff(districts_present, names(colors_used))
-  if (length(missing_districts) > 0) {
-    extra_colors <- setNames(rep(default_color, length(missing_districts)), missing_districts)
-    colors_used <- c(colors_used, extra_colors)
-  }
-  
   full_name <- paste(json_data$first_name, json_data$last_name)
   title <- paste("Посещённые регионы –", full_name)
   cat("Заголовок:", title, "\n")
   
   p <- ggplot() +
-    geom_sf(data = combined, color = "#2E4053", size = 0.3, aes(fill = district_visited)) +
+    geom_sf(data = combined, color = NA, size = 0, aes(fill = district_visited)) +
     scale_fill_manual(
-      values = colors_used,
+      values = district_colors,
       na.value = "#E8E8E8",
       name = "Федеральный округ"
     ) +
-    geom_sf(data = enissey, color = "dodgerblue", size = 0.4, fill = NA) +
-    geom_sf(data = selected_lakes, fill = "dodgerblue", color = "dodgerblue", size = 0.2, alpha = 0.7) +
+    geom_sf(data = rivers, color = "#00BFFF", size = 0.5, fill = NA) +
+    geom_sf(data = combined, color = "#2E4053", size = 0.3, fill = NA) +
+    geom_sf(data = selected_lakes, fill = "#00BFFF", color = "#00BFFF", size = 0.2, alpha = 1) +
+    geom_sf(data = azov, fill = "#00BFFF", color = "#00BFFF", size = 0.2, alpha = 0.7) +
     coord_sf() +
     theme_void() +
     theme(
       plot.background = element_rect(fill = "white", color = NA),
       legend.position = "bottom"
     ) +
-    labs(title = title)
+    labs(title = NULL)
   
   if (is.null(output_file)) {
     cat("Возвращаем ggplot\n")
@@ -115,7 +110,7 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
-# ---- Эндпоинт /map (возвращаем raw через res$body) ----
+# ---- Эндпоинт /map ----
 #* @post /map
 #* @raw
 function(req, res) {
