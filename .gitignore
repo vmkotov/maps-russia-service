@@ -25,3 +25,6 @@ output/reports/
 data/input/*.json
 *.bak
 *.bak2
+city_coordinates*.csv
+*.png
+scripts/city_coordinates*.csv

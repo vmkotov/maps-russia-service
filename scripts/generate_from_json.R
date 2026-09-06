@@ -19,7 +19,7 @@ library(jsonlite)
 # ---- Загрузка RDS-данных ----
 load_data <- function() {
   required_files <- c(
-    "data/rds/combined.rds",
+    "data/rds/combined_split.rds",
     "data/rds/russian_rivers.rds",
     "data/rds/selected_lakes.rds",
     "data/rds/azov_sea.rds"
@@ -30,7 +30,7 @@ load_data <- function() {
     }
   }
   list(
-    combined = readRDS("data/rds/combined.rds"),
+    combined = readRDS("data/rds/combined_split.rds"),
     rivers = readRDS("data/rds/russian_rivers.rds"),
     selected_lakes = readRDS("data/rds/selected_lakes.rds"),
     azov = readRDS("data/rds/azov_sea.rds")

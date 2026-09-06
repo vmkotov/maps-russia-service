@@ -14,7 +14,7 @@ cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 load_data <- function() {
   cat("load_data(): начало\n")
   required_files <- c(
-    "/app/data/rds/combined.rds",
+    "/app/data/rds/combined_split.rds",
     "/app/data/rds/russian_rivers.rds",
     "/app/data/rds/selected_lakes.rds",
     "/app/data/rds/azov_sea.rds"
@@ -27,7 +27,7 @@ load_data <- function() {
   }
   cat("Все файлы найдены. Загружаем...\n")
   data <- list(
-    combined = readRDS("/app/data/rds/combined.rds"),
+    combined = readRDS("/app/data/rds/combined_split.rds"),
     rivers = readRDS("/app/data/rds/russian_rivers.rds"),
     selected_lakes = readRDS("/app/data/rds/selected_lakes.rds"),
     azov = readRDS("/app/data/rds/azov_sea.rds")
