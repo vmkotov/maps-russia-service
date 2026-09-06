@@ -22,3 +22,6 @@ output/reports/
 
 # Docker
 *.tar.gz
+data/input/*.json
+*.bak
+*.bak2

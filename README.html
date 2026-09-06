@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Документация сервиса карт России</title>
+  <style>
+    /* ---- Общие стили ---- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: #f8f9fa;
+      color: #1e293b;
+      line-height: 1.7;
+      padding: 0 20px 60px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: white;
+      box-shadow: 0 0 40px rgba(0,0,0,0.06);
+      border-radius: 24px;
+      padding: 40px 50px;
+    }
+    h1, h2, h3, h4 {
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    h1 {
+      font-size: 2.4rem;
+      margin-top: 0.2em;
+      margin-bottom: 0.4em;
+      border-bottom: 3px solid #e9edf4;
+      padding-bottom: 0.3em;
+    }
+    h2 {
+      font-size: 1.8rem;
+      margin-top: 2em;
+      margin-bottom: 0.6em;
+      border-bottom: 2px solid #eef2f7;
+      padding-bottom: 0.2em;
+    }
+    h3 {
+      font-size: 1.3rem;
+      margin-top: 1.6em;
+      margin-bottom: 0.4em;
+    }
+    h4 {
+      font-size: 1.1rem;
+      margin-top: 1.2em;
+      margin-bottom: 0.3em;
+      color: #2c3e50;
+    }
+    p, li {
+      margin-bottom: 0.7em;
+    }
+    a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    ul, ol {
+      padding-left: 1.8em;
+      margin-bottom: 1em;
+    }
+    pre, code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 0.1em 0.4em;
+      font-size: 0.9em;
+    }
+    pre {
+      padding: 1.2em 1.5em;
+      overflow-x: auto;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      margin: 1.2em 0;
+      border-radius: 12px;
+    }
+    pre code {
+      background: transparent;
+      padding: 0;
+      font-size: 0.9em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.2em 0;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+    }
+    hr {
+      border: none;
+      border-top: 2px dashed #e2e8f0;
+      margin: 2.5em 0;
+    }
+    .badge {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4338ca;
+      padding: 0.2em 0.8em;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-right: 0.3em;
+    }
+    .note {
+      background: #fef9e7;
+      border-left: 5px solid #f59e0b;
+      padding: 1em 1.5em;
+      border-radius: 8px;
+      margin: 1.5em 0;
+    }
+    .note strong {
+      color: #b45309;
+    }
+    .toc {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 1.5em 2em;
+      margin: 1.5em 0 2.5em;
+      border: 1px solid #e2e8f0;
+    }
+    .toc ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .toc ul li {
+      margin-bottom: 0.3em;
+    }
+    .toc ul li a {
+      display: block;
+      padding: 0.2em 0.6em;
+      border-radius: 6px;
+      transition: background 0.1s;
+    }
+    .toc ul li a:hover {
+      background: #eef2ff;
+      text-decoration: none;
+    }
+    .toc ul ul {
+      padding-left: 1.8em;
+      margin-top: 0.1em;
+    }
+    .footer {
+      margin-top: 3em;
+      padding-top: 1.5em;
+      border-top: 1px solid #e2e8f0;
+      font-size: 0.9rem;
+      color: #64748b;
+      text-align: center;
+    }
+    @media (max-width: 768px) {
+      .container { padding: 20px 16px; }
+      h1 { font-size: 1.8rem; }
+      h2 { font-size: 1.4rem; }
+      pre { padding: 0.8em 1em; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📌 Картографический сервис регионов России</h1>
+  <p style="font-size:1.1rem; color:#475569; margin-bottom:1.5em;">
+    Микросервис для генерации PNG-карт с заливкой регионов по федеральным округам.
+  </p>
+
+  <!-- ====== Оглавление ====== -->
+  <div class="toc">
+    <strong style="font-size:1.2rem;">📖 Содержание</strong>
+    <ul>
+      <li><a href="#user-guide">1. Руководство пользователя</a>
+        <ul>
+          <li><a href="#ug-intro">Что это</a></li>
+          <li><a href="#ug-endpoint">Эндпоинт и заголовки</a></li>
+          <li><a href="#ug-format">Формат запроса</a></li>
+          <li><a href="#ug-response">Ответ и ошибки</a></li>
+          <li><a href="#ug-example">Пример cURL</a></li>
+        </ul>
+      </li>
+      <li><a href="#dev-guide">2. Руководство разработчика</a>
+        <ul>
+          <li><a href="#dg-arch">Архитектура и стек</a></li>
+          <li><a href="#dg-structure">Структура репозитория</a></li>
+          <li><a href="#dg-workflow">Как это работает</a></li>
+          <li><a href="#dg-deploy">Деплой</a></li>
+          <li><a href="#dg-extend">Расширение</a></li>
+        </ul>
+      </li>
+      <li><a href="#ai-guide">3. Руководство для ИИ-инструментов</a>
+        <ul>
+          <li><a href="#ai-purpose">Цель</a></li>
+          <li><a href="#ai-architecture">Архитектура (схема)</a></li>
+          <li><a href="#ai-keyfiles">Ключевые файлы</a></li>
+          <li><a href="#ai-improvements">Направления улучшений</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- ====== 1. РУКОВОДСТВО ПОЛЬЗОВАТЕЛЯ ====== -->
+  <!-- ============================================================ -->
+  <section id="user-guide">
+    <h2>1. Руководство пользователя</h2>
+
+    <h3 id="ug-intro">Что это</h3>
+    <p>
+      Сервис принимает JSON-запрос с перечнем регионов, которые посетил пользователь,
+      и возвращает PNG-картинку с закраской этих регионов по федеральным округам.
+      На карте отображаются границы регионов, основные реки, озёра (Байкал, Ладога, Онега)
+      и Азовское море.
+    </p>
+
+    <h3 id="ug-endpoint">Базовый URL и эндпоинт</h3>
+    <p><strong>Базовый URL:</strong> <code>https://maps-russia-service.onrender.com</code></p>
+    <p><strong>Эндпоинт:</strong> <code>POST /map</code></p>
+    <p><strong>Заголовок:</strong> <code>Content-Type: application/json</code></p>
+
+    <h3 id="ug-format">Формат запроса (JSON)</h3>
+    <pre>
+{
+  "client_id": "user_123",
+  "first_name": "Иван",
+  "last_name": "Петров",
+  "regions": [
+    {
+      "region_name_en": "Moscow",
+      "district_name": "Центральный"
+    },
+    {
+      "region_name_en": "Saint Petersburg",
+      "district_name": "Северо-Западный"
+    }
+  ]
+}</pre>
+
+    <table>
+      <thead><tr><th>Поле</th><th>Тип</th><th>Обязательное</th><th>Описание</th></tr></thead>
+      <tbody>
+        <tr><td><code>client_id</code></td><td>строка</td><td>✅</td><td>Уникальный идентификатор пользователя</td></tr>
+        <tr><td><code>first_name</code></td><td>строка</td><td>✅</td><td>Имя пользователя</td></tr>
+        <tr><td><code>last_name</code></td><td>строка</td><td>✅</td><td>Фамилия пользователя</td></tr>
+        <tr><td><code>regions</code></td><td>массив</td><td>✅</td><td>Список посещённых регионов</td></tr>
+        <tr><td><code>regions[].region_name_en</code></td><td>строка</td><td>✅</td><td>Английское название региона (точное совпадение с данными Natural Earth)</td></tr>
+        <tr><td><code>regions[].district_name</code></td><td>строка</td><td>✅</td><td>Название федерального округа (определяет цвет заливки)</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Допустимые значения <code>district_name</code>:</strong></p>
+    <ul>
+      <li><code>Дальневосточный</code></li>
+      <li><code>Приволжский</code></li>
+      <li><code>Северо-Западный</code></li>
+      <li><code>Северо-Кавказский</code></li>
+      <li><code>Сибирский</code></li>
+      <li><code>Уральский</code></li>
+      <li><code>Центральный</code></li>
+      <li><code>Южный</code></li>
+    </ul>
+
+    <h3 id="ug-response">Ответ и ошибки</h3>
+    <ul>
+      <li><strong>200 OK</strong> – возвращает изображение PNG с <code>Content-Type: image/png</code>.</li>
+      <li><strong>400 Bad Request</strong> – ошибка в JSON (неверный формат, отсутствие обязательных полей).</li>
+      <li><strong>500 Internal Server Error</strong> – внутренняя ошибка (свяжитесь с разработчиком).</li>
+    </ul>
+
+    <h3 id="ug-example">Пример cURL</h3>
+    <pre>
+curl -X POST https://maps-russia-service.onrender.com/map \
+  -H "Content-Type: application/json" \
+  -d '{
+    "client_id": "user_123",
+    "first_name": "Иван",
+    "last_name": "Петров",
+    "regions": [
+      {"region_name_en": "Moscow", "district_name": "Центральный"},
+      {"region_name_en": "Saint Petersburg", "district_name": "Северо-Западный"}
+    ]
+  }' \
+  --output map.png</pre>
+
+    <div class="note">
+      <strong>Примечание:</strong> Если регион не найден в данных, он игнорируется (не закрашивается).
+    </div>
+
+  </section>
+
+  <hr>
+
+  <!-- ============================================================ -->
+  <!-- ====== 2. РУКОВОДСТВО РАЗРАБОТЧИКА ====== -->
+  <!-- ============================================================ -->
+  <section id="dev-guide">
+    <h2>2. Руководство разработчика</h2>
+
+    <h3 id="dg-arch">Архитектура и стек</h3>
+    <ul>
+      <li><strong>Язык:</strong> R (≥ 4.6.1)</li>
+      <li><strong>Веб-фреймворк:</strong> <code>plumber</code></li>
+      <li><strong>Пространственные данные:</strong> <code>sf</code>, <code>rnaturalearth</code>, <code>rnaturalearthhires</code></li>
+      <li><strong>Визуализация:</strong> <code>ggplot2</code></li>
+      <li><strong>Деплой:</strong> Docker + Render</li>
+    </ul>
+
+    <h3 id="dg-structure">Структура репозитория</h3>
+    <pre>
+MAPS_RUSSIA_1.0/
+├── Dockerfile
+├── .dockerignore
+├── data/
+│   ├── input/                 # тестовые JSON
+│   └── rds/                   # RDS‑файлы с пространственными данными
+│       ├── combined.rds       # полигоны регионов (Россия + выбранные области Украины)
+│       ├── russian_rivers.rds # линии крупных рек
+│       ├── selected_lakes.rds # полигоны озёр (Байкал, Ладога, Онега)
+│       └── azov_sea.rds       # полигон Азовского моря (опционально)
+├── scripts/
+│   ├── generate_from_json.R   # основной скрипт генерации карты по JSON
+│   ├── api.R                  # Plumber‑сервер
+│   ├── export_user_json.R     # экспорт данных из БД в JSON
+│   └── setup.R                # первичная настройка (создание RDS)
+├── output/                    # выходные PNG (локально)
+└── README.md</pre>
+
+    <h3 id="dg-workflow">Как это работает (по шагам)</h3>
+    <ol>
+      <li><strong>Запрос:</strong> клиент отправляет POST‑запрос с JSON‑телом на <code>/map</code>.</li>
+      <li><strong>Валидация:</strong> <code>api.R</code> проверяет наличие обязательных полей.</li>
+      <li><strong>Загрузка данных:</strong> <code>load_data()</code> загружает RDS‑файлы.</li>
+      <li><strong>Обработка регионов:</strong> для каждого региона из <code>regions</code> ищется полигон в <code>combined</code> по полю <code>name_en</code>. Добавляется колонка <code>district_visited</code>.</li>
+      <li><strong>Построение карты:</strong> <code>ggplot2</code> создаёт слои:
+        <ul>
+          <li>заливка регионов (цвета по округам, непосещённые – светло‑серые <code>#E8E8E8</code>)</li>
+          <li>реки (синие линии)</li>
+          <li>контуры регионов (тёмно‑синие)</li>
+          <li>озёра и море (голубые полигоны)</li>
+        </ul>
+      </li>
+      <li><strong>Сохранение PNG:</strong> график сохраняется во временный файл, читается как raw и возвращается клиенту с <code>Content-Type: image/png</code>.</li>
+    </ol>
+
+    <h3 id="dg-deploy">Деплой на Render</h3>
+    <ul>
+      <li>Сборка Docker‑образа по <code>Dockerfile</code> на базе <code>rocker/geospatial</code>.</li>
+      <li>Переменные окружения не требуются.</li>
+      <li>Порт 8000 открыт.</li>
+    </ul>
+
+    <h3 id="dg-extend">Как добавить новый водный объект или реку</h3>
+    <ol>
+      <li>Найдите или создайте полигон/линию в формате <code>sf</code>.</li>
+      <li>Сохраните как RDS в <code>data/rds/</code>.</li>
+      <li>Добавьте в <code>load_data()</code> и в слой <code>ggplot</code> в обоих файлах (<code>generate_from_json.R</code> и <code>api.R</code>).</li>
+      <li>Пересоберите и задеплойте.</li>
+    </ol>
+
+    <div class="note">
+      <strong>Важно:</strong> При добавлении нового файла убедитесь, что он не исключён в <code>.dockerignore</code> и присутствует в репозитории.
+    </div>
+
+  </section>
+
+  <hr>
+
+  <!-- ============================================================ -->
+  <!-- ====== 3. РУКОВОДСТВО ДЛЯ ИИ-ИНСТРУМЕНТОВ ====== -->
+  <!-- ============================================================ -->
+  <section id="ai-guide">
+    <h2>3. Руководство для ИИ-инструментов</h2>
+
+    <h3 id="ai-purpose">Цель</h3>
+    <p>
+      Документ описывает архитектуру и ключевые точки расширения сервиса, чтобы ИИ-ассистенты могли предлагать улучшения, исправлять баги и добавлять новый функционал.
+    </p>
+
+    <h3 id="ai-architecture">Архитектура (схема)</h3>
+    <pre>
+Клиент → (JSON) → [Plumber API: /map] → (загрузка RDS) → (обработка) → (ggplot) → PNG → Клиент</pre>
+
+    <h3 id="ai-keyfiles">Ключевые файлы</h3>
+    <table>
+      <thead><tr><th>Файл</th><th>Назначение</th><th>Что можно улучшить</th></tr></thead>
+      <tbody>
+        <tr><td><code>scripts/api.R</code></td><td>Plumber‑сервер, приём запросов</td><td>Логирование, авторизация, кеширование</td></tr>
+        <tr><td><code>scripts/generate_from_json.R</code></td><td>Логика построения карты</td><td>Оптимизация, новые слои</td></tr>
+        <tr><td><code>scripts/export_user_json.R</code></td><td>Экспорт из БД</td><td>Поддержка других источников</td></tr>
+        <tr><td><code>data/rds/combined.rds</code></td><td>Полигоны регионов</td><td>Замена на более точные данные (GADM, OSM)</td></tr>
+        <tr><td><code>Dockerfile</code></td><td>Сборка образа</td><td>Оптимизация размера</td></tr>
+      </tbody>
+    </table>
+
+    <h3 id="ai-improvements">Возможные направления улучшения</h3>
+    <ul>
+      <li><strong>Производительность:</strong> уменьшить время загрузки RDS (использовать <code>qs</code> или <code>fst</code>), кешировать результаты.</li>
+      <li><strong>Расширение данных:</strong> добавить города, метки, поддержку русских названий регионов.</li>
+      <li><strong>Кастомизация:</strong> параметры запроса: <code>width</code>, <code>height</code>, <code>format</code>, цвета.</li>
+      <li><strong>Безопасность:</strong> API‑ключ, ограничение запросов, логирование ошибок.</li>
+      <li><strong>Интеграция:</strong> поддержка GraphQL, веб‑сокеты.</li>
+    </ul>
+
+    <h4>Примеры запросов к ИИ</h4>
+    <ul>
+      <li><em>"Как добавить поддержку русского названия региона в JSON?"</em> → добавить словарь перевода в <code>generate_from_json.R</code> и расширить логику поиска по <code>region_name_ru</code>.</li>
+      <li><em>"Как ускорить сборку Docker‑образа?"</em> → использовать многоступенчатую сборку, кешировать установку пакетов.</li>
+      <li><em>"Как добавить новый источник данных для полигонов?"</em> → заменить <code>combined.rds</code> на данные из GADM или OSM, обновить <code>load_data()</code>.</li>
+    </ul>
+
+    <div class="note">
+      <strong>Совет:</strong> При обнаружении ошибки или идеи улучшения создавайте Issue в репозитории или предлагайте pull request.
+    </div>
+
+  </section>
+
+  <div class="footer">
+    © 2026 — Картографический сервис регионов России &bull; <a href="https://github.com/vmkotov/maps-russia-service" target="_blank">GitHub</a>
+  </div>
+
+</div>
+</body>
+</html>
