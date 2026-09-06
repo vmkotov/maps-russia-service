@@ -67,6 +67,14 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
     }
   }
   
+  # Преобразуем в фактор с уровнями всех федеральных округов
+  all_districts <- c(
+    "Дальневосточный", "Приволжский", "Северо-Западный",
+    "Северо-Кавказский", "Сибирский", "Уральский",
+    "Центральный", "Южный"
+  )
+  combined$district_visited <- factor(combined$district_visited, levels = all_districts)
+  
   # Палитра цветов (полная)
   district_colors <- c(
     "Дальневосточный"      = "#E63946",
@@ -88,7 +96,9 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
     scale_fill_manual(
       values = district_colors,
       na.value = "#E8E8E8",
-      name = "Федеральный округ"
+      name = "Федеральный округ",
+      drop = FALSE,
+      na.translate = FALSE
     ) +
     # 2. Реки (под контурами)
     geom_sf(data = rivers, color = "#00BFFF", size = 0.5, fill = NA) +

@@ -65,6 +65,14 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
     }
   }
   
+  # Все возможные округа (для легенды)
+  all_districts <- c(
+    "Дальневосточный", "Приволжский", "Северо-Западный",
+    "Северо-Кавказский", "Сибирский", "Уральский",
+    "Центральный", "Южный"
+  )
+  combined$district_visited <- factor(combined$district_visited, levels = all_districts)
+  
   district_colors <- c(
     "Дальневосточный"      = "#E63946",
     "Приволжский"          = "#F4A261",
@@ -85,7 +93,9 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
     scale_fill_manual(
       values = district_colors,
       na.value = "#E8E8E8",
-      name = "Федеральный округ"
+      name = "Федеральный округ",
+      drop = FALSE,
+      na.translate = FALSE
     ) +
     geom_sf(data = rivers, color = "#00BFFF", size = 0.5, fill = NA) +
     geom_sf(data = combined, color = "#2E4053", size = 0.3, fill = NA) +
