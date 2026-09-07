@@ -7,15 +7,12 @@ library(plumber)
 library(sf)
 library(ggplot2)
 library(jsonlite)
-library(showtext)
-library(sysfonts)
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
 # ---- Автоопределение шрифта для кириллицы ----
-find_cyrillic_font <- function() {
   # Список возможных путей к шрифтам с поддержкой кириллицы
   candidates <- c(
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -34,14 +31,10 @@ find_cyrillic_font <- function() {
   return(NULL)
 }
 
-font_path <- find_cyrillic_font()
 if (!is.null(font_path)) {
-  font_add("cyr", regular = font_path)
 } else {
   # Если путь не найден, надеемся, что системный sans поддерживает кириллицу
-  font_add("cyr", family = "sans")
 }
-showtext_auto()
 cat("🔤 Шрифт для кириллицы зарегистрирован.\n")
 
 # ---- Остальной код (без изменений) ----
@@ -278,7 +271,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
         geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
         coord_sf() +
         theme_void() +
-        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "cyr")) +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "sans")) +
         labs(title = region_name)
       plots[[i]] <- p
       next
@@ -300,11 +293,11 @@ generate_region_pages_pdf <- function(json_data, combined) {
                  aes(x = lon, y = lat), color = "gray50", shape = 1, size = 2) +
       geom_text(data = region_cities, check_overlap = TRUE,
                 aes(x = lon, y = lat, label = city_name, color = visited),
-                size = 2.5, hjust = 0, vjust = 1, family = "cyr") +
+                size = 2.5, hjust = 0, vjust = 1, family = "sans") +
       scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
       coord_sf() +
       theme_void() +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "cyr"),
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "sans"),
             legend.position = "none") +
       labs(title = region_name)
     
@@ -355,7 +348,7 @@ function(req, res) {
   
   tmp_pdf <- tempfile(fileext = ".pdf")
   cat("Сохранение PDF во временный файл...\n")
-  pdf(tmp_pdf, width = 12, height = 10, family = "cyr")
+  pdf(tmp_pdf, width = 12, height = 10, family = "sans")
   
   print(p_main)
   print(p_cities)
