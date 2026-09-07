@@ -1,5 +1,5 @@
 # scripts/api.R
-# Plumber API с поддержкой PNG и PDF (с DejaVu Sans)
+# Plumber API с поддержкой PNG и PDF (с автоопределением шрифта для кириллицы)
 
 Sys.setlocale("LC_ALL", "C.UTF-8")
 
@@ -10,15 +10,41 @@ library(jsonlite)
 library(showtext)
 library(sysfonts)
 
-# ---- Подключаем шрифт DejaVu Sans (поддерживает кириллицу) ----
-font_add("dejavu", regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
-showtext_auto()
-
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
-# ---- Функция загрузки данных ----
+# ---- Автоопределение шрифта для кириллицы ----
+find_cyrillic_font <- function() {
+  # Список возможных путей к шрифтам с поддержкой кириллицы
+  candidates <- c(
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf"
+  )
+  for (path in candidates) {
+    if (file.exists(path)) {
+      cat("✅ Найден шрифт:", path, "\n")
+      return(path)
+    }
+  }
+  # Если ничего не найдено, пробуем системный sans
+  cat("⚠️ Шрифт не найден, используем системный 'sans'\n")
+  return(NULL)
+}
+
+font_path <- find_cyrillic_font()
+if (!is.null(font_path)) {
+  font_add("cyr", regular = font_path)
+} else {
+  # Если путь не найден, надеемся, что системный sans поддерживает кириллицу
+  font_add("cyr", family = "sans")
+}
+showtext_auto()
+cat("🔤 Шрифт для кириллицы зарегистрирован.\n")
+
+# ---- Остальной код (без изменений) ----
 load_data <- function() {
   cat("load_data(): начало\n")
   required_files <- c(
@@ -44,7 +70,6 @@ load_data <- function() {
   return(data)
 }
 
-# ---- Функция для PNG (старый эндпоинт) ----
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
@@ -125,7 +150,6 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
-# ---- Функции для PDF-отчёта (с логированием) ----
 generate_main_map <- function(json_data) {
   t_start <- Sys.time()
   cat("generate_main_map(): начало\n")
@@ -254,7 +278,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
         geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
         coord_sf() +
         theme_void() +
-        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "dejavu")) +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "cyr")) +
         labs(title = region_name)
       plots[[i]] <- p
       next
@@ -276,11 +300,11 @@ generate_region_pages_pdf <- function(json_data, combined) {
                  aes(x = lon, y = lat), color = "gray50", shape = 1, size = 2) +
       geom_text(data = region_cities, check_overlap = TRUE,
                 aes(x = lon, y = lat, label = city_name, color = visited),
-                size = 2.5, hjust = 0, vjust = 1, family = "dejavu") +
+                size = 2.5, hjust = 0, vjust = 1, family = "cyr") +
       scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
       coord_sf() +
       theme_void() +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "dejavu"),
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "cyr"),
             legend.position = "none") +
       labs(title = region_name)
     
@@ -331,7 +355,7 @@ function(req, res) {
   
   tmp_pdf <- tempfile(fileext = ".pdf")
   cat("Сохранение PDF во временный файл...\n")
-  pdf(tmp_pdf, width = 12, height = 10, family = "dejavu")
+  pdf(tmp_pdf, width = 12, height = 10, family = "cyr")
   
   print(p_main)
   print(p_cities)
