@@ -8,33 +8,18 @@ renv/staging/
 renv/local/
 renv/activate.R
 
-# Данные (RDS) — если они большие, исключаем; если маленькие — можно закомментировать
-# data/rds/*.rds
-
-# Выходные файлы
-output/plots/
-output/reports/
-
 # Временные файлы
 *.tmp
 *.log
-.DS_Store
+*.bak
+*.png
+*.pdf
+*.csv
+*.txt
+output/plots/
+output/reports/
+data/input/*.json
 
 # Docker
 *.tar.gz
-data/input/*.json
-*.bak
-*.bak2
-city_coordinates*.csv
-*.png
-scripts/city_coordinates*.csv
-city_table_with_coords.csv
-crimea_kaliningrad_coords_fix.csv
-user*.csv
-output/
-scripts/output/
-scripts/export_user_cities_json.R
-scripts/generate_cities_from_json.R
-scripts/generate_full_report.R
-scripts/generate_all_region_maps.R
-scripts/user12_cities_pdf_final.R
+.DS_Store
