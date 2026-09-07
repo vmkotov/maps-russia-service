@@ -268,7 +268,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
         geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
         coord_sf() +
         theme_void() +
-        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "liberation")) +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12)) +
         labs(title = region_name)
       plots[[i]] <- p
       next
@@ -290,11 +290,11 @@ generate_region_pages_pdf <- function(json_data, combined) {
                  aes(x = lon, y = lat), color = "gray50", shape = 1, size = 2) +
       geom_text(data = region_cities, check_overlap = TRUE,
                 aes(x = lon, y = lat, label = city_name, color = visited),
-                size = 2.5, hjust = 0, vjust = 1, family = "liberation") +
+                size = 2.5, hjust = 0, vjust = 1) +
       scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
       coord_sf() +
       theme_void() +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "liberation"),
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
             legend.position = "none") +
       labs(title = region_name)
     
@@ -345,8 +345,7 @@ function(req, res) {
   
   tmp_pdf <- tempfile(fileext = ".pdf")
   cat("Сохранение PDF во временный файл...\n")
-  pdf(tmp_pdf, width = 12, height = 10, family = "liberation")
-  showtext_begin()  # <-- включаем showtext для этого устройства
+  pdf(tmp_pdf, width = 12, height = 10)   # <-- убрали family
   
   print(p_main)
   print(p_cities)
@@ -354,7 +353,6 @@ function(req, res) {
     print(p)
   }
   
-  showtext_end()    # <-- отключаем showtext
   dev.off()
   
   pdf_raw <- readBin(tmp_pdf, "raw", n = file.info(tmp_pdf)$size)
