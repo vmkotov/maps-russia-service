@@ -1,14 +1,20 @@
 # scripts/api.R
 # Plumber API с ручной отправкой PNG через res$body
+# + новый эндпоинт /report для PDF-отчёта
 
 library(plumber)
 library(sf)
 library(ggplot2)
 library(jsonlite)
+library(showtext)
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
+
+# ---- Подключаем шрифт для кириллицы (на сервере) ----
+font_add_google("Roboto", "roboto")   # или использовать системный
+showtext_auto()
 
 # ---- Встроенная функция load_data ----
 load_data <- function() {
@@ -36,7 +42,7 @@ load_data <- function() {
   return(data)
 }
 
-# ---- Встроенная функция generate_map_from_regions ----
+# ---- Встроенная функция generate_map_from_regions (для PNG) ----
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
@@ -110,17 +116,219 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
     labs(title = NULL)
   
   if (is.null(output_file)) {
-    cat("Возвращаем ggplot\n")
     return(p)
   }
   
-  cat("Сохраняем в файл:", output_file, "\n")
   ggsave(output_file, p, width = 12, height = 10, dpi = 300)
-  cat("Файл сохранён\n")
+  cat("Карта сохранена в", output_file, "\n")
   return(output_file)
 }
 
-# ---- Эндпоинт /map ----
+# ---- Вспомогательные функции для PDF-отчёта ----
+generate_cities_map_pdf <- function(json_data) {
+  cat("generate_cities_map_pdf(): начало\n")
+  data_env <- load_data()
+  combined <- data_env$combined
+  rivers <- data_env$rivers
+  lakes <- data_env$selected_lakes
+  azov <- data_env$azov
+  combined <- combined[!duplicated(combined$name_en), ]
+  
+  # Собираем все посещённые города
+  cities_df <- data.frame(lat = numeric(), lon = numeric())
+  for (dist in json_data$districts) {
+    for (reg in dist$regions) {
+      for (city in reg$cities) {
+        if (isTRUE(city$visited)) {
+          cities_df <- rbind(cities_df, data.frame(
+            lat = city$lat,
+            lon = city$lon
+          ))
+        }
+      }
+    }
+  }
+  
+  if (nrow(cities_df) == 0) {
+    p <- ggplot() +
+      geom_sf(data = combined, color = "#2E4053", size = 0.3, fill = "#E8E8E8") +
+      coord_sf() +
+      theme_void() +
+      labs(title = "Посещённые города (нет данных)")
+    return(p)
+  }
+  
+  p <- ggplot() +
+    geom_sf(data = combined, color = "#2E4053", size = 0.3, fill = "#E8E8E8") +
+    geom_sf(data = rivers, color = "#00BFFF", size = 0.4, fill = NA) +
+    geom_sf(data = lakes, fill = "#00BFFF", color = "#00BFFF", size = 0.2, alpha = 1) +
+    geom_sf(data = azov, fill = "#00BFFF", color = "#00BFFF", size = 0.2, alpha = 0.7) +
+    geom_point(data = cities_df, aes(x = lon, y = lat), color = "red", size = 0.8, alpha = 0.7) +
+    coord_sf() +
+    theme_void() +
+    theme(plot.background = element_rect(fill = "white", color = NA)) +
+    labs(title = "Посещённые города")
+  return(p)
+}
+
+generate_region_pages_pdf <- function(json_data, combined) {
+  cat("generate_region_pages_pdf(): начало\n")
+  combined <- combined[order(combined$name), ]
+  
+  # Создаём словарь: region_name_en -> список городов из JSON
+  cities_dict <- list()
+  for (dist in json_data$districts) {
+    for (reg in dist$regions) {
+      reg_en <- reg$region_name_en
+      cities_list <- list()
+      for (city in reg$cities) {
+        cities_list[[length(cities_list)+1]] <- list(
+          city_name = city$city_name,
+          lat = city$lat,
+          lon = city$lon,
+          visited = isTRUE(city$visited)
+        )
+      }
+      cities_dict[[reg_en]] <- cities_list
+    }
+  }
+  
+  plots <- list()
+  for (i in 1:nrow(combined)) {
+    region_poly <- combined[i, ]
+    region_name <- region_poly$name
+    region_name_en <- region_poly$name_en
+    
+    region_cities_raw <- cities_dict[[region_name_en]]
+    if (is.null(region_cities_raw) || length(region_cities_raw) == 0) {
+      p <- ggplot() +
+        geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
+        coord_sf() +
+        theme_void() +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12)) +
+        labs(title = region_name)
+      plots[[i]] <- p
+      next
+    }
+    
+    region_cities <- data.frame(
+      city_name = sapply(region_cities_raw, function(x) x$city_name),
+      lat = sapply(region_cities_raw, function(x) x$lat),
+      lon = sapply(region_cities_raw, function(x) x$lon),
+      visited = sapply(region_cities_raw, function(x) x$visited),
+      stringsAsFactors = FALSE
+    )
+    
+    p <- ggplot() +
+      geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
+      geom_point(data = region_cities[region_cities$visited, ], 
+                 aes(x = lon, y = lat), color = "red", shape = 16, size = 2) +
+      geom_point(data = region_cities[!region_cities$visited, ], 
+                 aes(x = lon, y = lat), color = "gray50", shape = 1, size = 2) +
+      geom_text_repel(data = region_cities, 
+                      aes(x = lon, y = lat, label = city_name, color = visited),
+                      size = 2.5, box.padding = 0.3, point.padding = 0.2,
+                      segment.color = NA, max.overlaps = 10) +
+      scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
+      coord_sf() +
+      theme_void() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+            legend.position = "none") +
+      labs(title = region_name)
+    
+    plots[[i]] <- p
+  }
+  return(plots)
+}
+
+# ---- Эндпоинт /report (PDF) ----
+#* @post /report
+#* @raw
+function(req, res) {
+  cat("=== Запрос на /report ===\n")
+  
+  body <- tryCatch(
+    jsonlite::fromJSON(req$postBody, simplifyVector = FALSE),
+    error = function(e) {
+      res$status <- 400
+      return(list(error = "Invalid JSON"))
+    }
+  )
+  
+  required <- c("client_id", "first_name", "last_name", "districts")
+  missing <- setdiff(required, names(body))
+  if (length(missing) > 0) {
+    res$status <- 400
+    return(list(error = paste("Missing fields:", paste(missing, collapse=", "))))
+  }
+  if (length(body$districts) == 0) {
+    res$status <- 400
+    return(list(error = "districts must be a non-empty array"))
+  }
+  
+  # Проверяем, что в каждом округе есть регионы и города
+  # (минимальная валидация)
+  for (dist in body$districts) {
+    if (!"regions" %in% names(dist) || length(dist$regions) == 0) {
+      res$status <- 400
+      return(list(error = "Each district must have non-empty 'regions'"))
+    }
+  }
+  
+  # Загружаем данные
+  data_env <- load_data()
+  combined <- data_env$combined
+  combined <- combined[!duplicated(combined$name_en), ]
+  
+  # Генерируем страницы
+  p_main <- generate_main_map(body)    # мы не определили эту функцию, используем generate_map_from_regions с преобразованием
+  # Для main map нужно преобразовать districts в плоский список регионов
+  regions_df <- data.frame(
+    region_name_en = character(),
+    district_name = character(),
+    stringsAsFactors = FALSE
+  )
+  for (dist in body$districts) {
+    for (reg in dist$regions) {
+      regions_df <- rbind(regions_df, data.frame(
+        region_name_en = reg$region_name_en,
+        district_name = dist$district_name,
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
+  temp_json <- list(
+    client_id = body$client_id,
+    first_name = body$first_name,
+    last_name = body$last_name,
+    regions = regions_df
+  )
+  p_main <- generate_map_from_regions(data_env, temp_json, output_file = NULL)
+  
+  p_cities <- generate_cities_map_pdf(body)
+  region_plots <- generate_region_pages_pdf(body, combined)
+  
+  # Создаём временный PDF
+  tmp_pdf <- tempfile(fileext = ".pdf")
+  pdf(tmp_pdf, width = 12, height = 10, family = "roboto")  # используем roboto (должен быть установлен)
+  
+  print(p_main)
+  print(p_cities)
+  for (p in region_plots) {
+    print(p)
+  }
+  
+  dev.off()
+  
+  # Читаем и возвращаем
+  pdf_raw <- readBin(tmp_pdf, "raw", n = file.info(tmp_pdf)$size)
+  res$setHeader("Content-Type", "application/pdf")
+  res$setHeader("Content-Disposition", "attachment; filename=report.pdf")
+  res$body <- pdf_raw
+  return(res)
+}
+
+# ---- Оставляем старый эндпоинт /map ----
 #* @post /map
 #* @raw
 function(req, res) {
