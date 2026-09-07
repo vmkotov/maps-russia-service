@@ -16,3 +16,6 @@ ENV LC_ALL=C.UTF-8
 
 # Устанавливаем шрифт Liberation Sans для кириллицы
 RUN apt-get update && apt-get install -y fonts-liberation && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем шрифт DejaVu Sans для кириллицы
+RUN apt-get update && apt-get install -y fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
