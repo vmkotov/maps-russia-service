@@ -59,7 +59,7 @@ load_data <- function() {
   return(data)
 }
 
-# ---- Остальные функции (без изменений) ----
+# ---- Функция для PNG (старый эндпоинт) ----
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
@@ -114,7 +114,7 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
     geom_sf(data = combined, color = NA, size = 0, aes(fill = district_visited)) +
     scale_fill_manual(
       values = district_colors,
-      na.value = "#E8E8E8",
+      na.value = "#E8E8E8",               # серый для непосещённых
       name = "Федеральный округ",
       drop = FALSE,
       na.translate = FALSE
@@ -140,6 +140,7 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
+# ---- Функции для PDF-отчёта ----
 generate_main_map <- function(json_data) {
   t_start <- Sys.time()
   cat("generate_main_map(): начало\n")
@@ -248,7 +249,8 @@ generate_region_pages_pdf <- function(json_data, combined) {
           city_name = city$city_name,
           lat = city$lat,
           lon = city$lon,
-          visited = isTRUE(city$visited)
+          visited = isTRUE(city$visited),
+          population = if (!is.null(city$population)) as.numeric(city$population) else 0
         )
       }
       cities_dict[[reg_en]] <- cities_list
@@ -268,7 +270,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
         geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
         coord_sf() +
         theme_void() +
-        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12)) +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "liberation")) +
         labs(title = region_name)
       plots[[i]] <- p
       next
@@ -279,22 +281,38 @@ generate_region_pages_pdf <- function(json_data, combined) {
       lat = sapply(region_cities_raw, function(x) x$lat),
       lon = sapply(region_cities_raw, function(x) x$lon),
       visited = sapply(region_cities_raw, function(x) x$visited),
+      population = sapply(region_cities_raw, function(x) x$population),
       stringsAsFactors = FALSE
     )
     
+    # Создаём группы размера в зависимости от населения
+    region_cities$size_group <- cut(region_cities$population,
+                                    breaks = c(-Inf, 50000, 100000, 500000, 1000000, Inf),
+                                    labels = c("до 50k", "50-100k", "100-500k", "500k-1m", ">1m"),
+                                    include.lowest = TRUE)
+    # Задаём размеры для каждой группы
+    size_map <- c("до 50k" = 1, "50-100k" = 1.5, "100-500k" = 2, "500k-1m" = 2.5, ">1m" = 3)
+    region_cities$size <- size_map[as.character(region_cities$size_group)]
+    
     p <- ggplot() +
       geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
-      geom_point(data = region_cities[region_cities$visited, ], 
-                 aes(x = lon, y = lat), color = "red", shape = 16, size = 2) +
-      geom_point(data = region_cities[!region_cities$visited, ], 
-                 aes(x = lon, y = lat), color = "gray50", shape = 1, size = 2) +
-      geom_text(data = region_cities, check_overlap = TRUE,
+      # Посещённые города: залитые красные кружки с размером
+      geom_point(data = region_cities[region_cities$visited, ],
+                 aes(x = lon, y = lat, size = size),
+                 color = "red", fill = "red", shape = 16) +
+      # Непосещённые города: пустые серые кружки с размером
+      geom_point(data = region_cities[!region_cities$visited, ],
+                 aes(x = lon, y = lat, size = size),
+                 color = "gray50", fill = NA, shape = 1) +
+      # Подписи городов (цвет зависит от visited)
+      geom_text(data = region_cities,
                 aes(x = lon, y = lat, label = city_name, color = visited),
-                size = 2.5, hjust = 0, vjust = 1) +
+                size = 2.5, hjust = 0, vjust = 1, check_overlap = TRUE, family = "liberation") +
       scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
+      scale_size_identity() +   # используем заданные размеры
       coord_sf() +
       theme_void() +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "liberation"),
             legend.position = "none") +
       labs(title = region_name)
     
@@ -304,7 +322,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
   return(plots)
 }
 
-# ---- Эндпоинт /report ----
+# ---- Эндпоинт /report (PDF) ----
 #* @post /report
 #* @raw
 function(req, res) {
@@ -345,7 +363,7 @@ function(req, res) {
   
   tmp_pdf <- tempfile(fileext = ".pdf")
   cat("Сохранение PDF во временный файл...\n")
-  pdf(tmp_pdf, width = 12, height = 10)   # <-- убрали family
+  pdf(tmp_pdf, width = 12, height = 10)
   
   print(p_main)
   print(p_cities)
