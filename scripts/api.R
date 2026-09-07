@@ -1,5 +1,5 @@
 # scripts/api.R
-# Plumber API с поддержкой PNG и PDF (с системным шрифтом sans)
+# Plumber API с поддержкой PNG и PDF (с LiberationSans через showtext)
 
 Sys.setlocale("LC_ALL", "C.UTF-8")
 
@@ -7,12 +7,33 @@ library(plumber)
 library(sf)
 library(ggplot2)
 library(jsonlite)
+library(showtext)
+library(sysfonts)
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
-# ---- Функция загрузки данных ----
+# ---- Регистрируем шрифт Liberation Sans ----
+font_path <- "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+if (file.exists(font_path)) {
+  font_add("liberation", regular = font_path)
+  cat("✅ Шрифт Liberation Sans найден и зарегистрирован.\n")
+} else {
+  cat("⚠️ Шрифт Liberation Sans не найден, пробуем DejaVu Sans.\n")
+  font_path2 <- "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+  if (file.exists(font_path2)) {
+    font_add("liberation", regular = font_path2)
+    cat("✅ Шрифт DejaVu Sans найден и зарегистрирован.\n")
+  } else {
+    cat("❌ Ни один шрифт не найден, используем системный sans (может не работать).\n")
+    font_add("liberation", family = "sans")
+  }
+}
+showtext_auto()
+cat("🔤 showtext активирован.\n")
+
+# ---- Загрузка данных ----
 load_data <- function() {
   cat("load_data(): начало\n")
   required_files <- c(
@@ -38,7 +59,7 @@ load_data <- function() {
   return(data)
 }
 
-# ---- Функция для PNG ----
+# ---- Остальные функции (без изменений) ----
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
@@ -119,7 +140,6 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
-# ---- Функции для PDF ----
 generate_main_map <- function(json_data) {
   t_start <- Sys.time()
   cat("generate_main_map(): начало\n")
@@ -248,7 +268,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
         geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
         coord_sf() +
         theme_void() +
-        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "sans")) +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "liberation")) +
         labs(title = region_name)
       plots[[i]] <- p
       next
@@ -270,11 +290,11 @@ generate_region_pages_pdf <- function(json_data, combined) {
                  aes(x = lon, y = lat), color = "gray50", shape = 1, size = 2) +
       geom_text(data = region_cities, check_overlap = TRUE,
                 aes(x = lon, y = lat, label = city_name, color = visited),
-                size = 2.5, hjust = 0, vjust = 1, family = "sans") +
+                size = 2.5, hjust = 0, vjust = 1, family = "liberation") +
       scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
       coord_sf() +
       theme_void() +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "sans"),
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "liberation"),
             legend.position = "none") +
       labs(title = region_name)
     
@@ -325,7 +345,7 @@ function(req, res) {
   
   tmp_pdf <- tempfile(fileext = ".pdf")
   cat("Сохранение PDF во временный файл...\n")
-  pdf(tmp_pdf, width = 12, height = 10, family = "sans")
+  pdf(tmp_pdf, width = 12, height = 10, family = "liberation")
   
   print(p_main)
   print(p_cities)
@@ -345,7 +365,7 @@ function(req, res) {
   return(res)
 }
 
-# ---- Эндпоинт /map ----
+# ---- Эндпоинт /map (PNG) ----
 #* @post /map
 #* @raw
 function(req, res) {
