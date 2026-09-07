@@ -1,5 +1,5 @@
 # scripts/api.R
-# Plumber API с поддержкой PNG и PDF (с автоопределением шрифта для кириллицы)
+# Plumber API с поддержкой PNG и PDF (с системным шрифтом sans)
 
 Sys.setlocale("LC_ALL", "C.UTF-8")
 
@@ -12,32 +12,7 @@ setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
-# ---- Автоопределение шрифта для кириллицы ----
-  # Список возможных путей к шрифтам с поддержкой кириллицы
-  candidates <- c(
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-    "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf"
-  )
-  for (path in candidates) {
-    if (file.exists(path)) {
-      cat("✅ Найден шрифт:", path, "\n")
-      return(path)
-    }
-  }
-  # Если ничего не найдено, пробуем системный sans
-  cat("⚠️ Шрифт не найден, используем системный 'sans'\n")
-  return(NULL)
-}
-
-if (!is.null(font_path)) {
-} else {
-  # Если путь не найден, надеемся, что системный sans поддерживает кириллицу
-}
-cat("🔤 Шрифт для кириллицы зарегистрирован.\n")
-
-# ---- Остальной код (без изменений) ----
+# ---- Функция загрузки данных ----
 load_data <- function() {
   cat("load_data(): начало\n")
   required_files <- c(
@@ -63,6 +38,7 @@ load_data <- function() {
   return(data)
 }
 
+# ---- Функция для PNG ----
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
@@ -143,6 +119,7 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
+# ---- Функции для PDF ----
 generate_main_map <- function(json_data) {
   t_start <- Sys.time()
   cat("generate_main_map(): начало\n")
@@ -307,7 +284,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
   return(plots)
 }
 
-# ---- Эндпоинт /report (PDF) ----
+# ---- Эндпоинт /report ----
 #* @post /report
 #* @raw
 function(req, res) {
@@ -368,7 +345,7 @@ function(req, res) {
   return(res)
 }
 
-# ---- Эндпоинт /map (PNG) ----
+# ---- Эндпоинт /map ----
 #* @post /map
 #* @raw
 function(req, res) {
