@@ -7,12 +7,8 @@ library(plumber)
 library(sf)
 library(ggplot2)
 library(jsonlite)
-library(showtext)
-library(sysfonts)
 
 # ---- Подключаем шрифт для кириллицы ----
-font_add("roboto", regular = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf")
-showtext_auto()
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
@@ -254,7 +250,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
         geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
         coord_sf() +
         theme_void() +
-        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "roboto")) +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "sans")) +
         labs(title = region_name)
       plots[[i]] <- p
       next
@@ -280,7 +276,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
       scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
       coord_sf() +
       theme_void() +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "roboto"),
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "sans"),
             legend.position = "none") +
       labs(title = region_name)
     
@@ -331,7 +327,7 @@ function(req, res) {
   
   tmp_pdf <- tempfile(fileext = ".pdf")
   cat("Сохранение PDF во временный файл...\n")
-  pdf(tmp_pdf, width = 12, height = 10, family = "roboto")
+  pdf(tmp_pdf, width = 12, height = 10, family = "sans")
   
   print(p_main)
   print(p_cities)
