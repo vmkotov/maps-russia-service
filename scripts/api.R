@@ -6,15 +6,12 @@ library(plumber)
 library(sf)
 library(ggplot2)
 library(jsonlite)
-library(showtext)
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
 # ---- Подключаем шрифт для кириллицы (на сервере) ----
-font_add_google("Roboto", "roboto")   # или использовать системный
-showtext_auto()
 
 # ---- Встроенная функция load_data ----
 load_data <- function() {
@@ -310,7 +307,7 @@ function(req, res) {
   
   # Создаём временный PDF
   tmp_pdf <- tempfile(fileext = ".pdf")
-  pdf(tmp_pdf, width = 12, height = 10, family = "roboto")  # используем roboto (должен быть установлен)
+  pdf(tmp_pdf, width = 12, height = 10, family = "Helvetica")  # используем roboto (должен быть установлен)
   
   print(p_main)
   print(p_cities)
