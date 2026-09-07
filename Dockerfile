@@ -11,3 +11,5 @@ RUN ls -la scripts/
 
 EXPOSE 8000
 CMD ["Rscript", "-e", "plumber::plumb('scripts/api.R')$run(host='0.0.0.0', port=8000)"]
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8

@@ -1,3 +1,4 @@
+Sys.setlocale("LC_ALL", "C.UTF-8")
 # scripts/api.R
 # Plumber API с ручной отправкой PNG через res$body
 # + новый эндпоинт /report для PDF-отчёта
