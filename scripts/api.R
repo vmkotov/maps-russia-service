@@ -6,6 +6,7 @@ library(plumber)
 library(sf)
 library(ggplot2)
 library(jsonlite)
+library(ggrepel)
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
