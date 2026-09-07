@@ -11,7 +11,7 @@ library(showtext)
 library(sysfonts)
 
 # ---- Подключаем шрифт для кириллицы ----
-font_add_google("Roboto", "roboto")
+font_add("roboto", regular = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf")
 showtext_auto()
 
 setwd("/app")
