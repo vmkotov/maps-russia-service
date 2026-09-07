@@ -1,21 +1,24 @@
-Sys.setlocale("LC_ALL", "C.UTF-8")
 # scripts/api.R
-# Plumber API с ручной отправкой PNG через res$body
-# + новый эндпоинт /report для PDF-отчёта
+# Plumber API с поддержкой PNG и PDF (с логированием)
+
+Sys.setlocale("LC_ALL", "C.UTF-8")
 
 library(plumber)
 library(sf)
 library(ggplot2)
 library(jsonlite)
-library(ggrepel)
+library(showtext)
+library(sysfonts)
+
+# ---- Подключаем шрифт для кириллицы ----
+font_add_google("Roboto", "roboto")
+showtext_auto()
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
-# ---- Подключаем шрифт для кириллицы (на сервере) ----
-
-# ---- Встроенная функция load_data ----
+# ---- Функция загрузки данных ----
 load_data <- function() {
   cat("load_data(): начало\n")
   required_files <- c(
@@ -41,7 +44,7 @@ load_data <- function() {
   return(data)
 }
 
-# ---- Встроенная функция generate_map_from_regions (для PNG) ----
+# ---- Функция для PNG (старый эндпоинт) ----
 generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   cat("generate_map_from_regions(): начало\n")
   combined <- data_env$combined
@@ -70,7 +73,6 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
     }
   }
   
-  # Все возможные округа (для легенды)
   all_districts <- c(
     "Дальневосточный", "Приволжский", "Северо-Западный",
     "Северо-Кавказский", "Сибирский", "Уральский",
@@ -123,8 +125,54 @@ generate_map_from_regions <- function(data_env, json_data, output_file = NULL) {
   return(output_file)
 }
 
-# ---- Вспомогательные функции для PDF-отчёта ----
+# ---- Функции для PDF-отчёта (с логированием) ----
+generate_main_map <- function(json_data) {
+  t_start <- Sys.time()
+  cat("generate_main_map(): начало\n")
+  regions_df <- data.frame(
+    region_name_en = character(),
+    district_name = character(),
+    stringsAsFactors = FALSE
+  )
+  for (dist in json_data$districts) {
+    dist_name <- dist$district_name
+    for (reg in dist$regions) {
+      has_visited <- any(sapply(reg$cities, function(city) isTRUE(city$visited)))
+      if (has_visited) {
+        regions_df <- rbind(regions_df, data.frame(
+          region_name_en = reg$region_name_en,
+          district_name = dist_name,
+          stringsAsFactors = FALSE
+        ))
+      }
+    }
+  }
+  if (nrow(regions_df) == 0) {
+    data_env <- load_data()
+    combined <- data_env$combined
+    combined <- combined[!duplicated(combined$name_en), ]
+    p <- ggplot() +
+      geom_sf(data = combined, color = "#2E4053", size = 0.3, fill = "#E8E8E8") +
+      coord_sf() +
+      theme_void() +
+      labs(title = "Нет посещённых регионов")
+    cat("generate_main_map: завершено за", round(difftime(Sys.time(), t_start, units = "secs"), 2), "сек\n")
+    return(p)
+  }
+  temp_json <- list(
+    client_id = json_data$client_id,
+    first_name = json_data$first_name,
+    last_name = json_data$last_name,
+    regions = regions_df
+  )
+  data_env <- load_data()
+  p <- generate_map_from_regions(data_env, temp_json, output_file = NULL)
+  cat("generate_main_map: завершено за", round(difftime(Sys.time(), t_start, units = "secs"), 2), "сек\n")
+  return(p)
+}
+
 generate_cities_map_pdf <- function(json_data) {
+  t_start <- Sys.time()
   cat("generate_cities_map_pdf(): начало\n")
   data_env <- load_data()
   combined <- data_env$combined
@@ -133,7 +181,6 @@ generate_cities_map_pdf <- function(json_data) {
   azov <- data_env$azov
   combined <- combined[!duplicated(combined$name_en), ]
   
-  # Собираем все посещённые города
   cities_df <- data.frame(lat = numeric(), lon = numeric())
   for (dist in json_data$districts) {
     for (reg in dist$regions) {
@@ -154,6 +201,7 @@ generate_cities_map_pdf <- function(json_data) {
       coord_sf() +
       theme_void() +
       labs(title = "Посещённые города (нет данных)")
+    cat("generate_cities_map_pdf: завершено за", round(difftime(Sys.time(), t_start, units = "secs"), 2), "сек\n")
     return(p)
   }
   
@@ -167,14 +215,15 @@ generate_cities_map_pdf <- function(json_data) {
     theme_void() +
     theme(plot.background = element_rect(fill = "white", color = NA)) +
     labs(title = "Посещённые города")
+  cat("generate_cities_map_pdf: завершено за", round(difftime(Sys.time(), t_start, units = "secs"), 2), "сек\n")
   return(p)
 }
 
 generate_region_pages_pdf <- function(json_data, combined) {
+  t_start <- Sys.time()
   cat("generate_region_pages_pdf(): начало\n")
   combined <- combined[order(combined$name), ]
   
-  # Создаём словарь: region_name_en -> список городов из JSON
   cities_dict <- list()
   for (dist in json_data$districts) {
     for (reg in dist$regions) {
@@ -194,6 +243,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
   
   plots <- list()
   for (i in 1:nrow(combined)) {
+    if (i %% 10 == 0) cat(sprintf("   Генерация страницы региона %d из %d\n", i, nrow(combined)))
     region_poly <- combined[i, ]
     region_name <- region_poly$name
     region_name_en <- region_poly$name_en
@@ -204,7 +254,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
         geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
         coord_sf() +
         theme_void() +
-        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12)) +
+        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "roboto")) +
         labs(title = region_name)
       plots[[i]] <- p
       next
@@ -224,19 +274,19 @@ generate_region_pages_pdf <- function(json_data, combined) {
                  aes(x = lon, y = lat), color = "red", shape = 16, size = 2) +
       geom_point(data = region_cities[!region_cities$visited, ], 
                  aes(x = lon, y = lat), color = "gray50", shape = 1, size = 2) +
-      geom_text_repel(data = region_cities, 
-                      aes(x = lon, y = lat, label = city_name, color = visited),
-                      size = 2.5, box.padding = 0.3, point.padding = 0.2,
-                      segment.color = NA, max.overlaps = 10) +
+      geom_text(data = region_cities, check_overlap = TRUE,
+                aes(x = lon, y = lat, label = city_name, color = visited),
+                size = 2.5, hjust = 0, vjust = 1) +
       scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
       coord_sf() +
       theme_void() +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12, family = "roboto"),
             legend.position = "none") +
       labs(title = region_name)
     
     plots[[i]] <- p
   }
+  cat("generate_region_pages_pdf: завершено за", round(difftime(Sys.time(), t_start, units = "secs"), 2), "сек\n")
   return(plots)
 }
 
@@ -244,6 +294,7 @@ generate_region_pages_pdf <- function(json_data, combined) {
 #* @post /report
 #* @raw
 function(req, res) {
+  total_start <- Sys.time()
   cat("=== Запрос на /report ===\n")
   
   body <- tryCatch(
@@ -265,51 +316,22 @@ function(req, res) {
     return(list(error = "districts must be a non-empty array"))
   }
   
-  # Проверяем, что в каждом округе есть регионы и города
-  # (минимальная валидация)
-  for (dist in body$districts) {
-    if (!"regions" %in% names(dist) || length(dist$regions) == 0) {
-      res$status <- 400
-      return(list(error = "Each district must have non-empty 'regions'"))
-    }
-  }
+  cat("Клиент:", body$client_id, "\n")
   
-  # Загружаем данные
   data_env <- load_data()
   combined <- data_env$combined
   combined <- combined[!duplicated(combined$name_en), ]
   
-  # Генерируем страницы
-  p_main <- generate_main_map(body)    # мы не определили эту функцию, используем generate_map_from_regions с преобразованием
-  # Для main map нужно преобразовать districts в плоский список регионов
-  regions_df <- data.frame(
-    region_name_en = character(),
-    district_name = character(),
-    stringsAsFactors = FALSE
-  )
-  for (dist in body$districts) {
-    for (reg in dist$regions) {
-      regions_df <- rbind(regions_df, data.frame(
-        region_name_en = reg$region_name_en,
-        district_name = dist$district_name,
-        stringsAsFactors = FALSE
-      ))
-    }
-  }
-  temp_json <- list(
-    client_id = body$client_id,
-    first_name = body$first_name,
-    last_name = body$last_name,
-    regions = regions_df
-  )
-  p_main <- generate_map_from_regions(data_env, temp_json, output_file = NULL)
-  
+  cat("Генерация страницы 1 (главная карта)...\n")
+  p_main <- generate_main_map(body)
+  cat("Генерация страницы 2 (карта городов)...\n")
   p_cities <- generate_cities_map_pdf(body)
+  cat("Генерация страниц регионов...\n")
   region_plots <- generate_region_pages_pdf(body, combined)
   
-  # Создаём временный PDF
   tmp_pdf <- tempfile(fileext = ".pdf")
-  pdf(tmp_pdf, width = 12, height = 10, family = "Helvetica")  # используем roboto (должен быть установлен)
+  cat("Сохранение PDF во временный файл...\n")
+  pdf(tmp_pdf, width = 12, height = 10, family = "roboto")
   
   print(p_main)
   print(p_cities)
@@ -319,63 +341,49 @@ function(req, res) {
   
   dev.off()
   
-  # Читаем и возвращаем
   pdf_raw <- readBin(tmp_pdf, "raw", n = file.info(tmp_pdf)$size)
   res$setHeader("Content-Type", "application/pdf")
   res$setHeader("Content-Disposition", "attachment; filename=report.pdf")
   res$body <- pdf_raw
+  
+  total_time <- difftime(Sys.time(), total_start, units = "secs")
+  cat("=== Отчёт сгенерирован за", round(total_time, 2), "сек ===\n")
   return(res)
 }
 
-# ---- Оставляем старый эндпоинт /map ----
+# ---- Эндпоинт /map (PNG) ----
 #* @post /map
 #* @raw
 function(req, res) {
   cat("=== Запрос на /map ===\n")
-  cat("Request method:", req$REQUEST_METHOD, "\n")
-  
   body <- tryCatch(
     jsonlite::fromJSON(req$postBody),
     error = function(e) {
-      cat("Ошибка парсинга JSON:", e$message, "\n")
       res$status <- 400
       return(list(error = "Invalid JSON"))
     }
   )
-  
   if (is.null(body) || !"regions" %in% names(body)) {
-    cat("Отсутствует поле regions\n")
     res$status <- 400
     return(list(error = "Missing 'regions' field"))
   }
-  
   required <- c("client_id", "first_name", "last_name", "regions")
   missing <- setdiff(required, names(body))
   if (length(missing) > 0) {
-    cat("Отсутствуют поля:", paste(missing, collapse=", "), "\n")
     res$status <- 400
     return(list(error = paste("Missing fields:", paste(missing, collapse=", "))))
   }
-  
   if (!is.data.frame(body$regions) || nrow(body$regions) == 0) {
-    cat("regions должен быть непустым массивом\n")
     res$status <- 400
     return(list(error = "regions must be a non-empty array of objects"))
   }
   
-  cat("Загружаем данные...\n")
   data_env <- load_data()
-  cat("Строим карту...\n")
   p <- generate_map_from_regions(data_env, body, output_file = NULL)
   
-  cat("Сохраняем во временный PNG...\n")
   tmp <- tempfile(fileext = ".png")
   ggsave(tmp, p, width = 12, height = 10, dpi = 300)
-  cat("Временный файл создан:", tmp, "\n")
-  cat("Размер файла:", file.info(tmp)$size, "bytes\n")
-  
   result <- readBin(tmp, "raw", n = file.info(tmp)$size)
-  cat("Возвращаем PNG, длина:", length(result), "\n")
   
   res$setHeader("Content-Type", "image/png")
   res$body <- result
@@ -383,163 +391,3 @@ function(req, res) {
 }
 
 cat("=== API загружено успешно ===\n")
-# ---- Вспомогательные функции для PDF-отчёта ----
-generate_main_map <- function(json_data) {
-  cat("generate_main_map(): начало\n")
-  # Преобразуем иерархический JSON в плоский список регионов с округами
-  regions_df <- data.frame(
-    region_name_en = character(),
-    district_name = character(),
-    stringsAsFactors = FALSE
-  )
-  for (dist in json_data$districts) {
-    dist_name <- dist$district_name
-    for (reg in dist$regions) {
-      # Проверяем, есть ли в этом регионе хотя бы один посещённый город
-      has_visited <- any(sapply(reg$cities, function(city) isTRUE(city$visited)))
-      if (has_visited) {
-        regions_df <- rbind(regions_df, data.frame(
-          region_name_en = reg$region_name_en,
-          district_name = dist_name,
-          stringsAsFactors = FALSE
-        ))
-      }
-    }
-  }
-  if (nrow(regions_df) == 0) {
-    data_env <- load_data()
-    combined <- data_env$combined
-    combined <- combined[!duplicated(combined$name_en), ]
-    p <- ggplot() +
-      geom_sf(data = combined, color = "#2E4053", size = 0.3, fill = "#E8E8E8") +
-      coord_sf() +
-      theme_void() +
-      labs(title = "Нет посещённых регионов")
-    return(p)
-  }
-  temp_json <- list(
-    client_id = json_data$client_id,
-    first_name = json_data$first_name,
-    last_name = json_data$last_name,
-    regions = regions_df
-  )
-  # Используем generate_map_from_regions (уже определена)
-  data_env <- load_data()
-  p <- generate_map_from_regions(data_env, temp_json, output_file = NULL)
-  return(p)
-}
-
-generate_cities_map_pdf <- function(json_data) {
-  cat("generate_cities_map_pdf(): начало\n")
-  data_env <- load_data()
-  combined <- data_env$combined
-  rivers <- data_env$rivers
-  lakes <- data_env$selected_lakes
-  azov <- data_env$azov
-  combined <- combined[!duplicated(combined$name_en), ]
-  
-  cities_df <- data.frame(lat = numeric(), lon = numeric())
-  for (dist in json_data$districts) {
-    for (reg in dist$regions) {
-      for (city in reg$cities) {
-        if (isTRUE(city$visited)) {
-          cities_df <- rbind(cities_df, data.frame(
-            lat = city$lat,
-            lon = city$lon
-          ))
-        }
-      }
-    }
-  }
-  
-  if (nrow(cities_df) == 0) {
-    p <- ggplot() +
-      geom_sf(data = combined, color = "#2E4053", size = 0.3, fill = "#E8E8E8") +
-      coord_sf() +
-      theme_void() +
-      labs(title = "Посещённые города (нет данных)")
-    return(p)
-  }
-  
-  p <- ggplot() +
-    geom_sf(data = combined, color = "#2E4053", size = 0.3, fill = "#E8E8E8") +
-    geom_sf(data = rivers, color = "#00BFFF", size = 0.4, fill = NA) +
-    geom_sf(data = lakes, fill = "#00BFFF", color = "#00BFFF", size = 0.2, alpha = 1) +
-    geom_sf(data = azov, fill = "#00BFFF", color = "#00BFFF", size = 0.2, alpha = 0.7) +
-    geom_point(data = cities_df, aes(x = lon, y = lat), color = "red", size = 0.8, alpha = 0.7) +
-    coord_sf() +
-    theme_void() +
-    theme(plot.background = element_rect(fill = "white", color = NA)) +
-    labs(title = "Посещённые города")
-  return(p)
-}
-
-generate_region_pages_pdf <- function(json_data, combined) {
-  cat("generate_region_pages_pdf(): начало\n")
-  combined <- combined[order(combined$name), ]
-  
-  cities_dict <- list()
-  for (dist in json_data$districts) {
-    for (reg in dist$regions) {
-      reg_en <- reg$region_name_en
-      cities_list <- list()
-      for (city in reg$cities) {
-        cities_list[[length(cities_list)+1]] <- list(
-          city_name = city$city_name,
-          lat = city$lat,
-          lon = city$lon,
-          visited = isTRUE(city$visited)
-        )
-      }
-      cities_dict[[reg_en]] <- cities_list
-    }
-  }
-  
-  plots <- list()
-  for (i in 1:nrow(combined)) {
-    region_poly <- combined[i, ]
-    region_name <- region_poly$name
-    region_name_en <- region_poly$name_en
-    
-    region_cities_raw <- cities_dict[[region_name_en]]
-    if (is.null(region_cities_raw) || length(region_cities_raw) == 0) {
-      p <- ggplot() +
-        geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
-        coord_sf() +
-        theme_void() +
-        theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12)) +
-        labs(title = region_name)
-      plots[[i]] <- p
-      next
-    }
-    
-    region_cities <- data.frame(
-      city_name = sapply(region_cities_raw, function(x) x$city_name),
-      lat = sapply(region_cities_raw, function(x) x$lat),
-      lon = sapply(region_cities_raw, function(x) x$lon),
-      visited = sapply(region_cities_raw, function(x) x$visited),
-      stringsAsFactors = FALSE
-    )
-    
-    p <- ggplot() +
-      geom_sf(data = region_poly, fill = "#E8E8E8", color = "#2E4053", size = 0.5) +
-      geom_point(data = region_cities[region_cities$visited, ], 
-                 aes(x = lon, y = lat), color = "red", shape = 16, size = 2) +
-      geom_point(data = region_cities[!region_cities$visited, ], 
-                 aes(x = lon, y = lat), color = "gray50", shape = 1, size = 2) +
-      geom_text_repel(data = region_cities, 
-                      aes(x = lon, y = lat, label = city_name, color = visited),
-                      size = 2.5, box.padding = 0.3, point.padding = 0.2,
-                      segment.color = NA, max.overlaps = 10) +
-      scale_color_manual(values = c("TRUE" = "red", "FALSE" = "gray50")) +
-      coord_sf() +
-      theme_void() +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
-            legend.position = "none") +
-      labs(title = region_name)
-    
-    plots[[i]] <- p
-  }
-  cat("Страницы регионов готовы.\n")
-  return(plots)
-}
