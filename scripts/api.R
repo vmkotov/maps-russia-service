@@ -346,6 +346,7 @@ function(req, res) {
   tmp_pdf <- tempfile(fileext = ".pdf")
   cat("Сохранение PDF во временный файл...\n")
   pdf(tmp_pdf, width = 12, height = 10, family = "liberation")
+  showtext_begin()  # <-- включаем showtext для этого устройства
   
   print(p_main)
   print(p_cities)
@@ -353,6 +354,7 @@ function(req, res) {
     print(p)
   }
   
+  showtext_end()    # <-- отключаем showtext
   dev.off()
   
   pdf_raw <- readBin(tmp_pdf, "raw", n = file.info(tmp_pdf)$size)
