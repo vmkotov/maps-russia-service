@@ -60,7 +60,7 @@ jobs:
             --container-name maps-r-service \
             --image "$IMAGE" \
             --cores 1 \
-            --memory 512MB \
+            --memory 1024MB \
             --concurrency 1 \
             --execution-timeout 600s \
             --service-account-id "$YC_SERVICE_ACCOUNT_ID" \
