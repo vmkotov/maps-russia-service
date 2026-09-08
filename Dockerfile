@@ -10,7 +10,7 @@ COPY . .
 RUN ls -la scripts/
 
 EXPOSE 8000
-CMD ls -la /usr/local/bin
+CMD Rscript app.R
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
