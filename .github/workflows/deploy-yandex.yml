@@ -1,0 +1,74 @@
+name: Deploy to Yandex Cloud
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'scripts/api.R'
+      - 'Dockerfile'
+      - '.github/workflows/deploy-yandex.yml'
+      - 'data/rds/*.rds'
+      - 'renv.lock'
+      - '.Rprofile'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i ~/.local -n
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Configure YC CLI
+        env:
+          YC_IAM_KEY_JSON: ${{ secrets.YC_IAM_KEY_JSON }}
+          YC_CLOUD_ID: ${{ secrets.YC_CLOUD_ID }}
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+        run: |
+          echo "$YC_IAM_KEY_JSON" > /tmp/iam-key.json
+          yc config set service-account-key /tmp/iam-key.json
+          yc config set cloud-id "$YC_CLOUD_ID"
+          yc config set folder-id "$YC_FOLDER_ID"
+          echo "YC CLI configured"
+
+      - name: Login to Container Registry
+        run: |
+          IAM_TOKEN=$(yc iam create-token)
+          echo "$IAM_TOKEN" | docker login --username iam --password-stdin cr.yandex
+
+      - name: Build and push image
+        env:
+          YC_REGISTRY_ID: ${{ secrets.YC_REGISTRY_ID }}
+        run: |
+          IMAGE="cr.yandex/$YC_REGISTRY_ID/maps-r-service:latest"
+          docker build -t "$IMAGE" -f Dockerfile .
+          docker push "$IMAGE"
+
+      - name: Deploy container revision
+        env:
+          YC_REGISTRY_ID: ${{ secrets.YC_REGISTRY_ID }}
+          YC_SERVICE_ACCOUNT_ID: ${{ secrets.YC_SERVICE_ACCOUNT_ID }}
+        run: |
+          IMAGE="cr.yandex/$YC_REGISTRY_ID/maps-r-service:latest"
+          yc serverless container revision deploy \
+            --container-name maps-r-service \
+            --image "$IMAGE" \
+            --cores 1 \
+            --memory 512MB \
+            --concurrency 1 \
+            --execution-timeout 600s \
+            --service-account-id "$YC_SERVICE_ACCOUNT_ID" \
+            --environment "PORT=8000" \
+            --public \
+            --description "Deploy from GitHub: ${{ github.sha }}"
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed"
+          yc serverless container revision list --container-name maps-r-service --limit 1
