@@ -64,7 +64,6 @@ jobs:
             --concurrency 1 \
             --execution-timeout 600s \
             --service-account-id "$YC_SERVICE_ACCOUNT_ID" \
-            --environment "PORT=8000" \
             --description "Deploy from GitHub: ${{ github.sha }}"
 
       - name: Make container public
