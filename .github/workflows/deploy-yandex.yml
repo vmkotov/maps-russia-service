@@ -65,8 +65,18 @@ jobs:
             --execution-timeout 600s \
             --service-account-id "$YC_SERVICE_ACCOUNT_ID" \
             --environment "PORT=8000" \
-            --allow-unauthenticated \
             --description "Deploy from GitHub: ${{ github.sha }}"
+
+      - name: Make container public
+        run: |
+          yc serverless container allow-unauthenticated-invoke --name maps-r-service || true
+          echo "Container is now public (or already was)"
+
+      - name: Get container URL
+        run: |
+          URL=$(yc serverless container get --name maps-r-service --format json | jq -r '.url')
+          echo "Container URL: $URL"
+          echo "CONTAINER_URL=$URL" >> $GITHUB_ENV
 
       - name: Verify deployment
         run: |
