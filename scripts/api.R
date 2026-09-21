@@ -9,6 +9,7 @@ library(ggplot2)
 library(jsonlite)
 library(showtext)
 library(sysfonts)
+library(patchwork)
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
@@ -381,38 +382,50 @@ function(req, res) {
 }
 
 # ---- Эндпоинт /map (PNG) ----
+
+# ---- Новая функция для комбинированной PNG (9:16) ----
+generate_combined_map <- function(json_data) {
+  p_main <- generate_main_map(json_data)
+  p_cities <- generate_cities_map_pdf(json_data)
+
+  full_name <- paste(json_data$first_name, json_data$last_name)
+  combined <- patchwork::wrap_plots(p_main, p_cities, ncol = 1) +
+    patchwork::plot_annotation(
+      title = full_name,
+      theme = ggplot2::theme(
+        plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16, family = "liberation")
+      )
+    )
+
+  tmp <- tempfile(fileext = ".png")
+  ggplot2::ggsave(tmp, combined, width = 6, height = 10.67, dpi = 300)
+  return(tmp)
+}
+
 #* @post /map
 #* @raw
 function(req, res) {
   cat("=== Запрос на /map ===\n")
   body <- tryCatch(
-    jsonlite::fromJSON(req$postBody),
+    jsonlite::fromJSON(req$postBody, simplifyVector = FALSE),
     error = function(e) {
       res$status <- 400
       return(list(error = "Invalid JSON"))
     }
   )
-  if (is.null(body) || !"regions" %in% names(body)) {
-    res$status <- 400
-    return(list(error = "Missing 'regions' field"))
-  }
-  required <- c("client_id", "first_name", "last_name", "regions")
+  required <- c("client_id", "first_name", "last_name", "districts")
   missing <- setdiff(required, names(body))
   if (length(missing) > 0) {
     res$status <- 400
     return(list(error = paste("Missing fields:", paste(missing, collapse=", "))))
   }
-  if (!is.data.frame(body$regions) || nrow(body$regions) == 0) {
+  if (length(body$districts) == 0) {
     res$status <- 400
-    return(list(error = "regions must be a non-empty array of objects"))
+    return(list(error = "districts must be a non-empty array"))
   }
 
-  data_env <- load_data()
-  p <- generate_map_from_regions(data_env, body, output_file = NULL)
-
-  tmp <- tempfile(fileext = ".png")
-  ggsave(tmp, p, width = 12, height = 10, dpi = 300)
-  result <- readBin(tmp, "raw", n = file.info(tmp)$size)
+  tmp_file <- generate_combined_map(body)
+  result <- readBin(tmp_file, "raw", n = file.info(tmp_file)$size)
 
   res$setHeader("Content-Type", "image/png")
   res$body <- result

@@ -1,5 +1,6 @@
 FROM rocker/geospatial:latest
 
+RUN install2.r plumber jsonlite ggrepel showtext sysfonts showtextdb patchwork
 RUN install2.r plumber jsonlite ggrepel showtext sysfonts showtextdb
 
 WORKDIR /app
