@@ -16,8 +16,25 @@ cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
 # ---- Регистрируем шрифт Liberation Sans ----
-font_add("liberation", regular = "/System/Library/Fonts/Supplemental/Arial.ttf")
-font_add("lib-bold", regular = "/System/Library/Fonts/Supplemental/Arial Bold.ttf")
+font_paths <- c(
+  "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+  "/System/Library/Fonts/Helvetica.ttc",
+  "/System/Library/Fonts/Supplemental/Arial.ttf",
+  "/Library/Fonts/Arial.ttf"
+)
+font_found <- FALSE
+for (fp in font_paths) {
+  if (file.exists(fp)) {
+    font_add("liberation", regular = fp)
+    cat("✅ Шрифт найден:", fp, "\n")
+    font_found <- TRUE
+    break
+  }
+}
+if (!font_found) {
+  stop("❌ Не найден ни один шрифт с поддержкой кириллицы.")
+}
 showtext_auto()
 cat("🔤 Шрифты Arial активированы.\n")
 
