@@ -1,6 +1,7 @@
 FROM rocker/geospatial:latest
+RUN apt-get update && apt-get install -y libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev && rm -rf /var/lib/apt/lists/*
 
-RUN install2.r plumber jsonlite ggrepel showtext sysfonts showtextdb patchwork
+RUN install2.r plumber jsonlite ggrepel showtext sysfonts showtextdb patchwork ragg
 
 WORKDIR /app
 COPY scripts/ scripts/

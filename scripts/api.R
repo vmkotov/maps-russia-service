@@ -18,10 +18,16 @@ cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
 # ---- Регистрируем шрифт Liberation Sans ----
 font_paths <- c(
+  "scripts/fonts/Arial.ttf",
+  "/System/Library/Fonts/Supplemental/Arial.ttf",
   "scripts/fonts/LiberationSans-Regular.ttf",
-  "/Users/vyacheslavkotov/Library/Fonts/LiberationSans-Regular.ttf",
-  "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-  "/System/Library/Fonts/Supplemental/Arial.ttf"
+  "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+)
+font_bold_paths <- c(
+  "scripts/fonts/Arial Bold.ttf",
+  "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+  "scripts/fonts/LiberationSans-Bold.ttf",
+  "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 )
 font_found <- FALSE
 for (fp in font_paths) {
@@ -29,6 +35,13 @@ for (fp in font_paths) {
     font_add("liberation", regular = fp)
     cat("✅ Шрифт найден:", fp, "\n")
     font_found <- TRUE
+    break
+  }
+}
+for (fp in font_bold_paths) {
+  if (file.exists(fp)) {
+    font_add("lib-bold", regular = fp)
+    cat("✅ Жирный шрифт найден:", fp, "\n")
     break
   }
 }
@@ -450,7 +463,7 @@ generate_combined_map <- function(json_data) {
   reg_df$y <- 1 - (reg_df$row - 0.5) / nrows
 
   p_regions <- ggplot(reg_df, aes(x = x, y = y, label = name, color = visited)) +
-    geom_text(size = 2.0, family = "liberation") +
+    geom_text(size = 3.7, family = "liberation") +
     scale_color_manual(values = c("TRUE" = "#2A9D8F", "FALSE" = "#c0392b")) +
     xlim(0, 1) + ylim(0, 1) +
     theme_void() +
@@ -461,17 +474,17 @@ generate_combined_map <- function(json_data) {
   # ---- Верхний блок: статистика ----
   stat_df <- data.frame(
     x     = c(0.3, 0.7, 0.3, 0.7),
-    y     = c(1.3, 1.3, -0.2, -0.2),
+    y     = c(2.0, 2.0, 0.3, 0.3),
     label = c(as.character(regions_visited), as.character(cities_visited),
               paste0("из ", total_regions, " регионов"),
               paste0("из ", total_cities, " городов")),
-    size  = c(12, 12, 3.0, 3.0),
+    size  = c(23, 23, 5.5, 5.5),
     color = c("#1a1a1a", "#1a1a1a", "#888888", "#888888")
   )
   p_stat <- ggplot(stat_df, aes(x = x, y = y, label = label)) +
     geom_text(aes(size = size, color = color), family = "liberation", vjust = 0.5) +
     scale_size_identity() + scale_color_identity() +
-    xlim(0, 1) + ylim(-0.5, 2.2) +
+    xlim(0, 1) + ylim(-0.5, 3.2) +
     theme_void() +
     theme(plot.background = element_rect(fill = "white", color = NA),
           plot.margin = margin(35, 10, 5, 10))
@@ -479,7 +492,7 @@ generate_combined_map <- function(json_data) {
   # ---- Подпись над второй картой ----
   label_df <- data.frame(x = 0.5, y = 0.5, label = "ПОСЕЩЁННЫЕ ГОРОДА")
   p_label <- ggplot(label_df, aes(x = x, y = y, label = label)) +
-    geom_text(size = 3.5, color = "#888888", family = "liberation") +
+    geom_text(size = 6.0, color = "#888888", family = "liberation") +
     xlim(0, 1) + ylim(0, 1) +
     theme_void() +
     theme(plot.background = element_rect(fill = "white", color = NA),
@@ -488,7 +501,7 @@ generate_combined_map <- function(json_data) {
   # ---- Нижний блок ----
   bottom_df <- data.frame(x = 0.5, y = 0.5, label = "t.me/vkotov_russian_city_bot")
   p_bottom <- ggplot(bottom_df, aes(x = x, y = y, label = label)) +
-    geom_text(size = 4.2, color = "#5b8def", family = "liberation") +
+    geom_text(size = 8.0, color = "#5b8def", family = "liberation") +
     xlim(0, 1) + ylim(0, 1) +
     theme_void() +
     theme(plot.background = element_rect(fill = "white", color = NA),
@@ -499,7 +512,7 @@ generate_combined_map <- function(json_data) {
     labs(title = NULL) +
     theme(legend.position = "top",
           legend.title = element_blank(),
-          legend.text = element_text(size = 7, family = "liberation"),
+          legend.text = element_text(size = 13, family = "liberation"),
           legend.key.size = unit(0.3, "cm"),
           legend.margin = margin(0, 0, 0, 0),
           legend.box.margin = margin(0, 0, 0, 0),
@@ -513,10 +526,11 @@ generate_combined_map <- function(json_data) {
 
   combined <- patchwork::wrap_plots(p_stat, p_main, p_regions, p_label, p_cities, p_bottom,
                                     ncol = 1,
-                                    heights = c(0.14, 1, 0.38, 0.035, 1, 0.07))
-
+                                    heights = c(0.19, 1, 0.38, 0.035, 1.15, 0.07))
   tmp <- tempfile(fileext = ".png")
   ggplot2::ggsave(tmp, combined, width = 6, height = 10.67, dpi = 180, bg = "white")
+  return(tmp)
+  dev.off()
   return(tmp)
 }
 #* @post /map
