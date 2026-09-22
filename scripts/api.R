@@ -17,11 +17,10 @@ cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
 # ---- Регистрируем шрифт Liberation Sans ----
 font_paths <- c(
+  "scripts/fonts/LiberationSans-Regular.ttf",
+  "/Users/vyacheslavkotov/Library/Fonts/LiberationSans-Regular.ttf",
   "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-  "/System/Library/Fonts/Helvetica.ttc",
-  "/System/Library/Fonts/Supplemental/Arial.ttf",
-  "/Library/Fonts/Arial.ttf"
+  "/System/Library/Fonts/Supplemental/Arial.ttf"
 )
 font_found <- FALSE
 for (fp in font_paths) {
