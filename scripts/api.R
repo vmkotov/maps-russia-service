@@ -10,6 +10,7 @@ library(jsonlite)
 library(showtext)
 library(sysfonts)
 library(patchwork)
+cat("VERSIONS:", paste(sapply(c("ggplot2","sf","patchwork","showtext","sysfonts"), function(p) paste0(p, "=", tryCatch(as.character(packageVersion(p)), error=function(e) "нет"))), collapse=" | "), "\n")
 
 setwd("/app")
 cat("Working directory set to:", getwd(), "\n")
