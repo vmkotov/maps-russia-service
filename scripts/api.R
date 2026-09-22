@@ -16,23 +16,10 @@ cat("Working directory set to:", getwd(), "\n")
 cat("Files in /app/data/rds/:", list.files("/app/data/rds/"), "\n")
 
 # ---- Регистрируем шрифт Liberation Sans ----
-font_path <- "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
-if (file.exists(font_path)) {
-  font_add("liberation", regular = font_path)
-  cat("✅ Шрифт Liberation Sans найден и зарегистрирован.\n")
-} else {
-  cat("⚠️ Шрифт Liberation Sans не найден, пробуем DejaVu Sans.\n")
-  font_path2 <- "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-  if (file.exists(font_path2)) {
-    font_add("liberation", regular = font_path2)
-    cat("✅ Шрифт DejaVu Sans найден и зарегистрирован.\n")
-  } else {
-    cat("❌ Ни один шрифт не найден, используем системный sans (может не работать).\n")
-    font_add("liberation", family = "sans")
-  }
-}
+font_add("liberation", regular = "/System/Library/Fonts/Supplemental/Arial.ttf")
+font_add("lib-bold", regular = "/System/Library/Fonts/Supplemental/Arial Bold.ttf")
 showtext_auto()
-cat("🔤 showtext активирован.\n")
+cat("🔤 Шрифты Arial активированы.\n")
 
 # ---- Загрузка данных ----
 load_data <- function() {
@@ -228,7 +215,7 @@ generate_cities_map_pdf <- function(json_data) {
     geom_sf(data = rivers, color = "#00BFFF", size = 0.4, fill = NA) +
     geom_sf(data = lakes, fill = "#00BFFF", color = "#00BFFF", size = 0.2, alpha = 1) +
     geom_sf(data = azov, fill = "#00BFFF", color = "#00BFFF", size = 0.2, alpha = 0.7) +
-    geom_point(data = cities_df, aes(x = lon, y = lat), color = "red", size = 0.8, alpha = 0.7) +
+    geom_point(data = cities_df, aes(x = lon, y = lat), color = "red", size = 0.3, alpha = 1) +
     coord_sf() +
     theme_void() +
     theme(plot.background = element_rect(fill = "white", color = NA)) +
@@ -383,25 +370,138 @@ function(req, res) {
 
 # ---- Эндпоинт /map (PNG) ----
 
-# ---- Новая функция для комбинированной PNG (9:16) ----
+# ---- Комбинированная PNG (9:16) со стильным блоком статистики ----
 generate_combined_map <- function(json_data) {
   p_main <- generate_main_map(json_data)
   p_cities <- generate_cities_map_pdf(json_data)
 
-  full_name <- paste(json_data$first_name, json_data$last_name)
-  combined <- patchwork::wrap_plots(p_main, p_cities, ncol = 1) +
-    patchwork::plot_annotation(
-      title = full_name,
-      theme = ggplot2::theme(
-        plot.title = ggplot2::element_text(hjust = 0.5, face = "bold", size = 16, family = "liberation")
-      )
-    )
+  # ---- Статистика ----
+  regions_visited <- sum(sapply(json_data$districts, function(d) {
+    sum(sapply(d$regions, function(r) isTRUE(r$region_visited)))
+  }))
+  cities_visited <- sum(sapply(json_data$districts, function(d) {
+    sum(sapply(d$regions, function(r) {
+      sum(sapply(r$cities, function(c) isTRUE(c$visited)))
+    }))
+  }))
+  total_regions <- length(unique(unlist(lapply(json_data$districts, function(d) {
+    sapply(d$regions, function(r) r$region_name_en)
+  }))))
+  total_cities <- sum(sapply(json_data$districts, function(d) {
+    sum(sapply(d$regions, function(r) length(r$cities)))
+  }))
+
+  # ---- Сбор всех регионов ----
+  clean_name <- function(x) {
+    # Особые случаи
+    x <- gsub("^Донецкая Народная Республика$", "ДНР", x)
+    x <- gsub("^Луганская Народная Республика$", "ЛНР", x)
+    x <- gsub("^Еврейская автономная область$", "Еврейская", x)
+    x <- gsub("^Республика Северная Осетия\\s*–\\s*Алания$", "Северная Осетия", x)
+    x <- gsub("^Чувашская Республика$", "Чувашия", x)
+    x <- gsub("^Чеченская Республика$", "Чечня", x)
+    x <- gsub("^Удмуртская Республика$", "Удмуртия", x)
+    x <- gsub("^Кабардино-Балкарская Республика$", "Кабардино-Балкария", x)
+    x <- gsub("^Кабардино-Балкарская Республика$", "КБР", x)
+    x <- gsub("^Карачаево-Черкесская Республика$", "КЧР", x)
+    x <- gsub("^Ханты-Мансийский автономный округ\\s*–\\s*Югра$", "ХМАО", x)
+    # Общие правила
+    x <- gsub("^Республика\\s+", "", x)
+    x <- gsub("\\s+Республика$", "", x)
+    x <- gsub("\\s+область$", "", x)
+    x <- gsub("\\s+край$", "", x)
+    x <- gsub("\\s+автономный округ$", "", x)
+    trimws(x)
+  }
+  reg_df <- data.frame()
+  for (dist in json_data$districts) {
+    for (reg in dist$regions) {
+      reg_df <- rbind(reg_df, data.frame(
+        name = clean_name(reg$region_name_ru),
+        visited = isTRUE(reg$region_visited),
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
+  reg_df <- reg_df[order(reg_df$name), ]
+  n <- nrow(reg_df)
+  ncols <- 6
+  nrows <- ceiling(n / ncols)
+  reg_df$col <- rep(1:ncols, length.out = n)
+  reg_df$row <- rep(1:nrows, each = ncols, length.out = n)
+  reg_df$x <- (reg_df$col - 0.5) / ncols
+  reg_df$y <- 1 - (reg_df$row - 0.5) / nrows
+
+  p_regions <- ggplot(reg_df, aes(x = x, y = y, label = name, color = visited)) +
+    geom_text(size = 2.0, family = "liberation") +
+    scale_color_manual(values = c("TRUE" = "#2A9D8F", "FALSE" = "#c0392b")) +
+    xlim(0, 1) + ylim(0, 1) +
+    theme_void() +
+    theme(plot.background = element_rect(fill = "white", color = NA),
+          legend.position = "none",
+          plot.margin = margin(-20, 0, 0, 0))
+
+  # ---- Верхний блок: статистика ----
+  stat_df <- data.frame(
+    x     = c(0.3, 0.7, 0.3, 0.7),
+    y     = c(1.3, 1.3, -0.2, -0.2),
+    label = c(as.character(regions_visited), as.character(cities_visited),
+              paste0("из ", total_regions, " регионов"),
+              paste0("из ", total_cities, " городов")),
+    size  = c(12, 12, 3.0, 3.0),
+    color = c("#1a1a1a", "#1a1a1a", "#888888", "#888888")
+  )
+  p_stat <- ggplot(stat_df, aes(x = x, y = y, label = label)) +
+    geom_text(aes(size = size, color = color), family = "liberation", vjust = 0.5) +
+    scale_size_identity() + scale_color_identity() +
+    xlim(0, 1) + ylim(-0.5, 2.2) +
+    theme_void() +
+    theme(plot.background = element_rect(fill = "white", color = NA),
+          plot.margin = margin(35, 10, 5, 10))
+
+  # ---- Подпись над второй картой ----
+  label_df <- data.frame(x = 0.5, y = 0.5, label = "ПОСЕЩЁННЫЕ ГОРОДА")
+  p_label <- ggplot(label_df, aes(x = x, y = y, label = label)) +
+    geom_text(size = 3.5, color = "#888888", family = "liberation") +
+    xlim(0, 1) + ylim(0, 1) +
+    theme_void() +
+    theme(plot.background = element_rect(fill = "white", color = NA),
+          plot.margin = margin(5, 5, 0, 5))
+
+  # ---- Нижний блок ----
+  bottom_df <- data.frame(x = 0.5, y = 0.5, label = "t.me/vkotov_russian_city_bot")
+  p_bottom <- ggplot(bottom_df, aes(x = x, y = y, label = label)) +
+    geom_text(size = 4.2, color = "#5b8def", family = "liberation") +
+    xlim(0, 1) + ylim(0, 1) +
+    theme_void() +
+    theme(plot.background = element_rect(fill = "white", color = NA),
+          plot.margin = margin(5, 5, 15, 5))
+
+  # ---- Карты ----
+  p_main <- p_main +
+    labs(title = NULL) +
+    theme(legend.position = "top",
+          legend.title = element_blank(),
+          legend.text = element_text(size = 7, family = "liberation"),
+          legend.key.size = unit(0.3, "cm"),
+          legend.margin = margin(0, 0, 0, 0),
+          legend.box.margin = margin(0, 0, 0, 0),
+          plot.margin = margin(0, 0, 0, 0)) +
+    coord_sf(expand = FALSE)
+
+  p_cities <- p_cities +
+    labs(title = NULL) +
+    theme(plot.margin = margin(0, 0, 0, 0)) +
+    coord_sf(expand = FALSE)
+
+  combined <- patchwork::wrap_plots(p_stat, p_main, p_regions, p_label, p_cities, p_bottom,
+                                    ncol = 1,
+                                    heights = c(0.14, 1, 0.38, 0.035, 1, 0.07))
 
   tmp <- tempfile(fileext = ".png")
-  ggplot2::ggsave(tmp, combined, width = 6, height = 10.67, dpi = 300)
+  ggplot2::ggsave(tmp, combined, width = 6, height = 10.67, dpi = 180, bg = "white")
   return(tmp)
 }
-
 #* @post /map
 #* @raw
 function(req, res) {

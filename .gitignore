@@ -23,3 +23,10 @@ data/input/*.json
 # Docker
 *.tar.gz
 .DS_Store
+
+# Секреты
+key.json
+
+# Бэкапы
+*.bak
+*.bak2
